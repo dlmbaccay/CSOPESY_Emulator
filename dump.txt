@@ -1,17 +1,123 @@
-#include "ScreenManager.h"
 #include "Colors.h"
 #include <iostream>
 #include <string>
 #include <cstdlib>
+#include <map>
+#include <thread>
+#include <chrono>
+#include <ctime>
+#include <mutex>
 
 using namespace std;
 
-static bool inSession = false;
-static string currentSessionName = ""; // Track current session name
-static ScreenManager screenManager;
+static int sessionCounter = 0; // Global session counter to assign unique IDs
+
+class ScreenSession {
+public:
+    string processName;
+    int sessionId;
+    int currentLine;
+    int totalLines;
+    string creationTimestamp;
+    bool isActive;
+
+    ScreenSession(string name, int totalLines)
+        : processName(name), sessionId(++sessionCounter), currentLine(0), totalLines(totalLines), isActive(true) {
+        time_t now = time(0);
+        tm localtm;
+        localtime_s(&localtm, &now); // Use localtime_s instead of localtime
+        char timestamp[100];
+        strftime(timestamp, sizeof(timestamp), "%m/%d/%Y, %I:%M:%S %p", &localtm);
+        creationTimestamp = string(timestamp);
+    }
+
+    void displayDetails() const {
+        cout << endl <<  "   Process: " << processName << endl;
+        cout << "   ID: " << sessionId << endl;
+        cout << "   Current instruction line: " << currentLine << " / " << totalLines << endl;
+        cout << "   Created at: " << creationTimestamp << endl << endl;
+    }
+
+    void run() {
+        while (isActive && currentLine < totalLines) {
+            this_thread::sleep_for(chrono::seconds(1));  // Simulate a process running
+            currentLine++;
+        }
+    }
+
+    void stop() {
+        isActive = false;
+    }
+};
+
+class ScreenManager {
+private:
+    map<string, ScreenSession*> sessions;
+    mutex sessionMutex;
+
+public:
+    ~ScreenManager() {
+        for (auto& session : sessions) {
+            delete session.second;
+        }
+    }
+
+    void createSession(const string& name) {
+        lock_guard<mutex> lock(sessionMutex);
+        int totalLines = 150;
+
+        if (sessions.find(name) == sessions.end()) {
+            // Create a new session
+            ScreenSession* session = new ScreenSession(name, totalLines);
+            sessions[name] = session;
+            thread(&ScreenSession::run, session).detach();  // Run the session in a separate thread
+            system("cls");  // Clear screen when session is created
+            cout << "> Created session for process: " << name << endl;
+            session->displayDetails();
+        }
+        else {
+            // If session already exists, port the user into that session
+            system("cls");  // Clear the screen when re-entering the session
+            cout << "> Session for process " << name << " already exists." << endl;
+            ScreenSession* session = sessions[name];
+            session->displayDetails();  // Redisplay session details
+        }
+    }
+
+    bool reattachSession(const string& name) {
+        lock_guard<mutex> lock(sessionMutex);
+        if (sessions.find(name) != sessions.end()) {
+            ScreenSession* session = sessions[name];
+            system("cls");  // Clear screen when session is reattached
+            cout << "> Reattached to session: " << name << endl;
+            session->displayDetails();
+            return true;
+        }
+        else {
+            cout << "> No session found for process: " << name << endl;
+            return false;
+        }
+    }
+
+    void listSessions() {
+        lock_guard<mutex> lock(sessionMutex);
+        if (sessions.empty()) {
+            cout << "> No active sessions." << endl;
+        }
+        else {
+            cout << "> Active sessions:" << endl;
+            for (const auto& pair : sessions) {
+                cout << " - " << pair.first << " | " << "ID: " << pair.second->sessionId << " | " << pair.second->currentLine << "/" << pair.second->totalLines << " | " << pair.second->creationTimestamp << endl;
+            }
+        }
+    }
+};
 
 static void printHeader();
 static bool handleCommand(const string& command);
+static bool inSession = false;
+static string currentSessionName = ""; // Track current session name
+static ScreenManager screenManager;
 
 int main() {
     string input;
@@ -33,7 +139,7 @@ int main() {
 static void printHeader() {
     cout << GREEN << "   _   _  _ ___ __  __ " << WHITE << " ___  ___  " << endl
         << GREEN << "  /_\\ | \\| |_ _|  \\/  |" << WHITE << "/ _ \\/ __| " << endl
-        << GREEN << " / _ \\| .` || || |\\/| |" << WHITE << " (_) \\__ \\ " << endl
+        << GREEN << " / _ \\| . || || |\\/| |" << WHITE << " (_) \\__ \\ " << endl
         << GREEN << "/_/ \\_\\_|\\_|___|_|  |_|" << WHITE << "\\___/|___/ " << endl
         << GREEN << "\nWelcome to ANIMOS Command Line Emulator!" << endl
         << LIGHT_YELLOW << "\nType 'help' to view all commands\n" << RESET << endl;

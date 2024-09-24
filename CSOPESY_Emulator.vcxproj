@@ -129,6 +129,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CSOPESY_Emulator.cpp" />
+    <ClCompile Include="ScreenManager.cpp" />
+    <ClCompile Include="ScreenSession.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Colors.h" />
+    <ClInclude Include="ScreenManager.h" />
+    <ClInclude Include="ScreenSession.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="dump.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
