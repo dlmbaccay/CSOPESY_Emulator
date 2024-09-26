@@ -100,23 +100,43 @@ static bool handleCommand(const string& command) {
 
     // If not in a session, process general commands
     if (!inSession) {
-        if (command == "initialize") {
+		if (command == "") {
+			// If the user presses Enter without typing anything
+			return true;
+		}
+        else if (command == "initialize") {
             // Command to initialize something
             cout << GREEN << "> initialize command recognized. Doing something." << RESET << endl;
         }
         else if (command.substr(0, 9) == "screen -s") {
-            // Create a new screen session with the given name
-            string processName = command.substr(10);
-            screenManager.createSession(processName);  // Create a session
-            inSession = true;  // Mark that the user is now in a session
-            currentSessionName = processName;
+			// Start a new screen session
+            
+            // if input was screen -s <blank>
+            if (command.length() <= 10 || command.substr(10).find_first_not_of(' ') == string::npos) {
+                // If there's no input after "screen -s" or it's just whitespace
+                cout << RED << "> Error: Missing process name for 'screen -s' command." << RESET << endl;
+            }
+            else {
+                // Create a new screen session with the given name
+                string processName = command.substr(10);
+                screenManager.createSession(processName);  // Create a session
+                inSession = true;  // Mark that the user is now in a session
+                currentSessionName = processName;
+            }
         }
         else if (command.substr(0, 9) == "screen -r") {
             // Reattach to an existing session
-            string processName = command.substr(10);
-            if (screenManager.reattachSession(processName)) {
-				inSession = true;  // Mark that the user is now in a session
-                currentSessionName = processName;  // Set the active session name
+
+            if (command.length() <= 10 || command.substr(10).find_first_not_of(' ') == string::npos) {
+                // If there's no input after "screen -r" or it's just whitespace
+                cout << RED << "> Error: Missing process name for 'screen -r' command." << RESET << endl;
+            }
+            else {
+                string processName = command.substr(10);
+                if (screenManager.reattachSession(processName)) {
+                    inSession = true;  // Mark that the user is now in a session
+                    currentSessionName = processName;  // Set the active session name
+                }
             }
         }
         else if (command == "screen -ls") {
