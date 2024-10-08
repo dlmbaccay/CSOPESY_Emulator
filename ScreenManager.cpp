@@ -4,98 +4,137 @@
 #include <cstdlib>
 
 using namespace std;
+ScreenManager::ScreenManager(int cores) : coreCount(cores), availableCores(cores) {
+    cpuCores = vector<bool>(cores, false);
+    startScheduler();  // Start the scheduler when the ScreenManager is initialized
+}
 
-/**
- * Destructor for ScreenManager.
- *
- * This destructor ensures that all dynamically allocated Process instances are deleted
- * when the ScreenManager instance is destroyed.
- */
 ScreenManager::~ScreenManager() {
     for (auto& process : processes) {
         delete process.second;
     }
 }
 
-/**
- * Creates a new process if one does not already exist.
- *
- * If a process with the provided name does not already exist, this method creates a new Process instance.
- * It defaults the process to having 150 total lines and runs the process in a separate thread.
- * If the process already exists, it displays a message and ports the user into the existing process.
- *
- * @param name The name of the process to create.
- */
-void ScreenManager::createProcess(const string& name) {
-    lock_guard<mutex> lock(processMutex); // Ensure thread safety
+void ScreenManager::createProcess(const std::string& name) {
+    lock_guard<mutex> lock(processMutex);
 
-    int totalLines = 150;  // Default total lines for each process
-
+    int totalLines = 100;  // Default total lines for each process
     if (processes.find(name) == processes.end()) {
-        // If no process with the name exists, create a new process
         Process* process = new Process(name, totalLines);
         processes[name] = process;
-        thread(&Process::run, process).detach();  // Run the process in a separate thread
-        system("cls");  // Clear the screen when the process is created
+        waitingQueue.push(process);  // Add to waiting queue
+
         cout << "> Created process: " << name << endl;
-        process->displayDetails();  // Display process details
+        process->displayDetails();
     }
     else {
-        // If process already exists, port the user into that process
-        system("cls");  // Clear the screen when re-entering the process
         cout << "> Process " << name << " already exists." << endl;
-        Process* process = processes[name];
-        process->displayDetails();  // Redisplay process details
     }
 }
 
-/**
-* Reattaches the user to an existing process.
-*
-* If a process with the provided name exists, this method reattaches the user to that process,
-* clears the screen, and redisplays the process details. If no process exists with that name,
-* it returns false.
-*
-* @param name The name of the process to reattach to.
-* @return true if the process was successfully reattached, false otherwise.
-*/
-bool ScreenManager::reattachProcess(const string& name) {
-    lock_guard<mutex> lock(processMutex); // Ensure thread safety
+bool ScreenManager::reattachProcess(const std::string& name) {
+    lock_guard<mutex> lock(processMutex);
 
     if (processes.find(name) != processes.end()) {
-        // If the process exists, reattach to it
         Process* process = processes[name];
-        system("cls");  // Clear the screen when reattaching
         cout << "> Reattached to process: " << name << endl;
-        process->displayDetails();  // Display process details
+        process->displayDetails();
         return true;
     }
     else {
-        // If no process with the name exists, return false
         cout << "> No process found for: " << name << endl;
         return false;
     }
 }
 
-/**
-* Lists all active processes.
-*
-* This method displays a list of all currently active processes, showing the process name,
-* process ID, current instruction line, total lines, and the timestamp of when the process was created.
-* If no processes are active, it displays a message indicating that.
-*/
 void ScreenManager::listProcess() {
-    lock_guard<mutex> lock(processMutex); // Ensure thread safety
+    lock_guard<mutex> lock(processMutex);
 
     if (processes.empty()) {
-        cout << "> No active processes." << endl;  // No active processes to display
+        cout << "> No processes available." << endl;
+        return;
     }
-    else {
-        cout << "> Active processes:" << endl;  // Display active processes
-        for (const auto& pair : processes) {
-            cout << " - " << pair.first << " | " << "ID: " << pair.second->processId
-                << " | " << pair.second->currentLine << "/" << pair.second->totalLines
-                << " | " << pair.second->creationTimestamp << endl;
+
+    bool hasQueued = false, hasRunning = false, hasFinished = false;
+
+    // Display queued processes
+    cout << "---------------------------------------" << endl;
+    cout << "Queued processes:" << endl;
+    for (const auto& pair : processes) {
+        if (pair.second->status == Process::Queued) {
+            hasQueued = true;
+            cout << " - " << pair.first
+                << " | " << pair.second->currentLine << "/" 
+                << pair.second->totalLines << endl;
+        }
+    }
+    if (!hasQueued) {
+        cout << "   No queued processes." << endl;
+    }
+
+    // Display running processes
+    cout << "---------------------------------------" << endl;
+    cout << "Running processes:" << endl;
+    for (const auto& pair : processes) {
+        if (pair.second->status == Process::Running) {
+            hasRunning = true;
+            cout << " - " << pair.first
+                << " | " << pair.second->runTimestamp
+                << " | Core: " << pair.second->coreIndex
+                << " | " << pair.second->currentLine << "/" 
+                << pair.second->totalLines << endl;
+        }
+    }
+    if (!hasRunning) {
+        cout << "   No running processes." << endl;
+    }
+
+    // Display finished processes
+    cout << "---------------------------------------" << endl;
+    cout << "Finished processes:" << endl;
+    for (const auto& pair : processes) {
+        if (pair.second->status == Process::Finished) {
+            hasFinished = true;
+            cout << " - " << pair.first
+                << " | " << pair.second->runTimestamp
+                << " | Finished" 
+                << " | " << pair.second->currentLine << "/"
+                << pair.second->totalLines << endl;
+        }
+    }
+    if (!hasFinished) {
+        cout << "   No finished processes." << endl;
+    }
+}
+
+
+void ScreenManager::startScheduler() {
+    std::thread schedulerThread(&ScreenManager::scheduleProcesses, this);
+    schedulerThread.detach();  // Detach the scheduler thread to run in the background
+}
+
+void ScreenManager::scheduleProcesses() {
+    while (true) {
+        std::this_thread::sleep_for(std::chrono::seconds(1));  // Small delay to prevent tight looping
+
+        lock_guard<mutex> lock(processMutex);
+
+        // If there are available cores and processes in the waiting queue
+        for (int i = 0; i < cpuCores.size(); ++i) {
+            if (!cpuCores[i] && !waitingQueue.empty()) {  // Check for a free core
+                Process* nextProcess = waitingQueue.front();
+                waitingQueue.pop();
+
+                cpuCores[i] = true;  // Mark the core as occupied
+
+                runningProcesses[nextProcess->processName] = std::thread([this, nextProcess, i]() {
+                    nextProcess->run(i);  // Pass the core index to the process
+                    lock_guard<mutex> lock(processMutex);
+                    cpuCores[i] = false;  // Release the core when the process finishes
+                    });
+
+                runningProcesses[nextProcess->processName].detach();  // Detach the process thread
+            }
         }
     }
 }

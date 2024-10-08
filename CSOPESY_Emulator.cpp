@@ -6,45 +6,28 @@
 
 using namespace std;
 
-/**
- * Tracks if the user is currently in a session.
- *
- * This flag indicates whether the user is currently interacting with an active session.
- * If true, session-specific commands like 'exit' will be handled accordingly.
- */
 static bool inSession = false;
 
-/**
- * Stores the name of the currently active session.
- *
- * This variable holds the name of the session that the user is currently interacting with.
- * It helps in identifying which session is active.
- */
 static string currentSessionName = ""; // Track current session name
 
-/**
- * Manages all active screen sessions.
- *
- * This object is responsible for creating, managing, and listing screen sessions. It interacts with
- * the ScreenManager class to perform session-related operations.
- */
-static ScreenManager screenManager;
+static ScreenManager screenManager(4);
 
 static void printHeader();
 static bool handleCommand(const string& command);
 
-/**
- * The main entry point for the emulator.
- *
- * The main function runs an infinite loop that waits for user input. It displays the appropriate prompt
- * based on whether the user is inside a session or in the main menu. The program will process each command
- * via the `handleCommand` function.
- */
 int main() {
+    for (int i = 1; i <= 10; ++i) {
+        screenManager.createProcess("p" + to_string(i));
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));  // 1-second delay between each process creation
+    }
+
+    system("cls");
+    
     string input;
     printHeader();  // Display the initial header
     bool running = true;
 
+    
     while (running) {
         // If in a session, show the session name in the prompt
         if (inSession) {
@@ -64,9 +47,6 @@ int main() {
     return 0;
 }
 
-/**
- * Displays the welcome header for the emulator.
- */
 static void printHeader() {
     cout << GREEN << "   _   _  _ ___ __  __ " << WHITE << " ___  ___  " << endl
         << GREEN << "  /_\\ | \\| |_ _|  \\/  |" << WHITE << "/ _ \\/ __| " << endl
@@ -76,16 +56,6 @@ static void printHeader() {
         << LIGHT_YELLOW << "\nType 'help' to view all commands\n" << RESET << endl;
 }
 
-/**
- * Processes user commands and handles session management.
- *
- * This function evaluates the input command provided by the user and performs corresponding actions,
- * such as creating a new session, reattaching to an existing session, listing sessions, or providing
- * help text. If the user is inside a session, it also processes session-specific commands like 'exit'.
- *
- * @param command The command string input by the user.
- * @return true if the emulator should continue running, false if it should exit.
- */
 static bool handleCommand(const string& command) {
 
     // Handle 'exit' when the user is inside a session
@@ -141,6 +111,8 @@ static bool handleCommand(const string& command) {
         }
         else if (command == "screen -ls") {
             // List all active sessions
+            system("cls");
+            printHeader(); 
             screenManager.listProcess();
         }
         else if (command == "scheduler-test") {
