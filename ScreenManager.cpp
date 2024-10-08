@@ -8,92 +8,92 @@ using namespace std;
 /**
  * Destructor for ScreenManager.
  *
- * This destructor ensures that all dynamically allocated ScreenSession instances are deleted
+ * This destructor ensures that all dynamically allocated Process instances are deleted
  * when the ScreenManager instance is destroyed.
  */
 ScreenManager::~ScreenManager() {
-    for (auto& session : sessions) {
-        delete session.second;
+    for (auto& process : processes) {
+        delete process.second;
     }
 }
 
 /**
- * Creates a new screen session if one does not already exist.
+ * Creates a new process if one does not already exist.
  *
- * If a session with the provided name does not already exist, this method creates a new ScreenSession instance.
- * It defaults the session to having 150 total lines and runs the session in a separate thread.
- * If the session already exists, it displays a message and ports the user into the existing session.
+ * If a process with the provided name does not already exist, this method creates a new Process instance.
+ * It defaults the process to having 150 total lines and runs the process in a separate thread.
+ * If the process already exists, it displays a message and ports the user into the existing process.
  *
- * @param name The name of the session to create.
+ * @param name The name of the process to create.
  */
-void ScreenManager::createSession(const string& name) {
-    lock_guard<mutex> lock(sessionMutex); // Ensure thread safety
+void ScreenManager::createProcess(const string& name) {
+    lock_guard<mutex> lock(processMutex); // Ensure thread safety
 
-    int totalLines = 150;  // Default total lines for each session
+    int totalLines = 150;  // Default total lines for each process
 
-    if (sessions.find(name) == sessions.end()) {
-        // If no session with the name exists, create a new session
-        ScreenSession* session = new ScreenSession(name, totalLines);
-        sessions[name] = session;
-        thread(&ScreenSession::run, session).detach();  // Run the session in a separate thread
-        system("cls");  // Clear the screen when the session is created
-        cout << "> Created session for process: " << name << endl;
-        session->displayDetails();  // Display session details
+    if (processes.find(name) == processes.end()) {
+        // If no process with the name exists, create a new process
+        Process* process = new Process(name, totalLines);
+        processes[name] = process;
+        thread(&Process::run, process).detach();  // Run the process in a separate thread
+        system("cls");  // Clear the screen when the process is created
+        cout << "> Created process: " << name << endl;
+        process->displayDetails();  // Display process details
     }
     else {
-        // If session already exists, port the user into that session
-        system("cls");  // Clear the screen when re-entering the session
-        cout << "> Session for process " << name << " already exists." << endl;
-        ScreenSession* session = sessions[name];
-        session->displayDetails();  // Redisplay session details
+        // If process already exists, port the user into that process
+        system("cls");  // Clear the screen when re-entering the process
+        cout << "> Process " << name << " already exists." << endl;
+        Process* process = processes[name];
+        process->displayDetails();  // Redisplay process details
     }
 }
 
 /**
-* Reattaches the user to an existing session.
+* Reattaches the user to an existing process.
 *
-* If a session with the provided name exists, this method reattaches the user to that session,
-* clears the screen, and redisplays the session details. If no session exists with that name,
+* If a process with the provided name exists, this method reattaches the user to that process,
+* clears the screen, and redisplays the process details. If no process exists with that name,
 * it returns false.
 *
-* @param name The name of the session to reattach to.
-* @return true if the session was successfully reattached, false otherwise.
+* @param name The name of the process to reattach to.
+* @return true if the process was successfully reattached, false otherwise.
 */
-bool ScreenManager::reattachSession(const string& name) {
-    lock_guard<mutex> lock(sessionMutex); // Ensure thread safety
+bool ScreenManager::reattachProcess(const string& name) {
+    lock_guard<mutex> lock(processMutex); // Ensure thread safety
 
-    if (sessions.find(name) != sessions.end()) {
-        // If the session exists, reattach to it
-        ScreenSession* session = sessions[name];
+    if (processes.find(name) != processes.end()) {
+        // If the process exists, reattach to it
+        Process* process = processes[name];
         system("cls");  // Clear the screen when reattaching
-        cout << "> Reattached to session: " << name << endl;
-        session->displayDetails();  // Display session details
+        cout << "> Reattached to process: " << name << endl;
+        process->displayDetails();  // Display process details
         return true;
     }
     else {
-        // If no session with the name exists, return false
-        cout << "> No session found for process: " << name << endl;
+        // If no process with the name exists, return false
+        cout << "> No process found for: " << name << endl;
         return false;
     }
 }
 
 /**
-* Lists all active screen sessions.
+* Lists all active processes.
 *
-* This method displays a list of all currently active screen sessions, showing the session name,
-* session ID, current instruction line, total lines, and the timestamp of when the session was created.
-* If no sessions are active, it displays a message indicating that.
+* This method displays a list of all currently active processes, showing the process name,
+* process ID, current instruction line, total lines, and the timestamp of when the process was created.
+* If no processes are active, it displays a message indicating that.
 */
-void ScreenManager::listSessions() {
-    lock_guard<mutex> lock(sessionMutex); // Ensure thread safety
+void ScreenManager::listProcess() {
+    lock_guard<mutex> lock(processMutex); // Ensure thread safety
 
-    if (sessions.empty()) {
-        cout << "> No active sessions." << endl;  // No active sessions to display
+    if (processes.empty()) {
+        cout << "> No active processes." << endl;  // No active processes to display
     }
     else {
-        cout << "> Active sessions:" << endl;  // Display active sessions
-        for (const auto& pair : sessions) {
-            cout << " - " << pair.first << " | " << "ID: " << pair.second->sessionId
+        cout << "> Active processes:" << endl;  // Display active processes
+        for (const auto& pair : processes) {
+            cout << " - " << pair.first << " | " << "ID: " << pair.second->processId
                 << " | " << pair.second->currentLine << "/" << pair.second->totalLines
                 << " | " << pair.second->creationTimestamp << endl;
         }

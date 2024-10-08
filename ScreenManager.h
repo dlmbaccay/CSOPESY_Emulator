@@ -4,70 +4,70 @@
 #include <map>
 #include <string>
 #include <mutex>
-#include "ScreenSession.h"
+#include "Process.h"
 
 /**
  * @class ScreenManager
- * Manages multiple ScreenSession instances, allowing session creation, reattachment, and listing.
+ * Manages multiple ScreenSession instances, allowing process creation, reattachment, and listing.
  *
- * The ScreenManager class handles the creation, management, and interaction with multiple screen sessions.
- * It maintains a map of active sessions, allowing users to create new sessions, reattach to existing ones,
- * and list all active sessions.
+ * The ScreenManager class handles the creation, management, and interaction with multiple processes.
+ * It maintains a map of active processes, allowing users to create new processes, reattach to existing ones,
+ * and list all active processes.
  */
 class ScreenManager {
 private:
     /**
      * A map of session names to their corresponding ScreenSession pointers.
      *
-     * This map stores all active screen sessions using the session name as the key.
+     * This map stores all active processes using the process name as the key.
      */
-    std::map<std::string, ScreenSession*> sessions;
+    std::map<std::string, Process*> processes;
 
     /**
-     * A mutex to ensure thread safety when accessing/modifying sessions.
+     * A mutex to ensure thread safety when accessing/modifying processes.
      */
-    std::mutex sessionMutex;
+    std::mutex processMutex;
 
 public:
     /**
      * Destructor for ScreenManager.
      *
-     * This destructor ensures that all dynamically allocated ScreenSession instances are deleted
+     * This destructor ensures that all dynamically allocated Process instances are deleted
      * when the ScreenManager instance is destroyed.
      */
     ~ScreenManager();
 
     /**
-     * Creates a new screen session if one does not already exist.
+     * Creates a new process if one does not already exist.
      *
-     * If a session with the provided name does not already exist, this method creates a new ScreenSession instance.
-     * It defaults the session to having 150 total lines and runs the session in a separate thread.
-     * If the session already exists, it displays a message and ports the user into the existing session.
+     * If a process with the provided name does not already exist, this method creates a new Process instance.
+     * It defaults the process to having 150 total lines and runs the process in a separate thread.
+     * If the process already exists, it displays a message and ports the user into the existing process.
      *
-     * @param name The name of the session to create.
+     * @param name The name of the process to create.
      */
-    void createSession(const std::string& name);
+    void createProcess(const std::string& name);
 
     /**
-     * Reattaches the user to an existing session.
+     * Reattaches the user to an existing process.
      *
-     * If a session with the provided name exists, this method reattaches the user to that session,
-     * clears the screen, and redisplays the session details. If no session exists with that name,
+     * If a process with the provided name exists, this method reattaches the user to that process,
+     * clears the screen, and redisplays the process details. If no process exists with that name,
      * it returns false.
      *
-     * @param name The name of the session to reattach to.
-     * @return true if the session was successfully reattached, false otherwise.
+     * @param name The name of the process to reattach to.
+     * @return true if the process was successfully reattached, false otherwise.
      */
-    bool reattachSession(const std::string& name);
+    bool reattachProcess(const std::string& name);
 
     /**
-     * Lists all active screen sessions.
+     * Lists all active processes.
      *
-     * This method displays a list of all currently active screen sessions, showing the session name,
-     * session ID, current instruction line, total lines, and the timestamp of when the session was created.
-     * If no sessions are active, it displays a message indicating that.
+     * This method displays a list of all currently active processes, showing the process name,
+     * process ID, current instruction line, total lines, and the timestamp of when the process was created.
+     * If no processes are active, it displays a message indicating that.
      */
-    void listSessions();
+    void listProcess();
 };
 
 #endif // SCREENMANAGER_H

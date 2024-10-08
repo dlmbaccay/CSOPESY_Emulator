@@ -119,7 +119,7 @@ static bool handleCommand(const string& command) {
             else {
                 // Create a new screen session with the given name
                 string processName = command.substr(10);
-                screenManager.createSession(processName);  // Create a session
+                screenManager.createProcess(processName);  // Create a session
                 inSession = true;  // Mark that the user is now in a session
                 currentSessionName = processName;
             }
@@ -133,7 +133,7 @@ static bool handleCommand(const string& command) {
             }
             else {
                 string processName = command.substr(10);
-                if (screenManager.reattachSession(processName)) {
+                if (screenManager.reattachProcess(processName)) {
                     inSession = true;  // Mark that the user is now in a session
                     currentSessionName = processName;  // Set the active session name
                 }
@@ -141,7 +141,7 @@ static bool handleCommand(const string& command) {
         }
         else if (command == "screen -ls") {
             // List all active sessions
-            screenManager.listSessions();
+            screenManager.listProcess();
         }
         else if (command == "scheduler-test") {
             // Handle scheduler-test command
