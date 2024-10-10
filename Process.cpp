@@ -4,6 +4,7 @@
 #include <chrono>
 #include <ctime>
 #include <fstream>
+#include <random>
 
 using namespace std;
 
@@ -47,9 +48,16 @@ void Process::run(int coreIndex) {
         cerr << "Error: Unable to open file for writing process details." << endl;
     }
 
+    // Set up random delay generator (0 to 1000 milliseconds)
+    random_device rd;  // Random number generator
+    mt19937 gen(rd());  // Mersenne Twister engine for better randomness
+    uniform_int_distribution<> dist(20, 200);  // Generate random delay between 0 and 1000 ms
+
     // Simulate process execution
     while (isActive && currentLine < totalLines) {
-        this_thread::sleep_for(chrono::milliseconds(20));  // Simulate a process running
+        int randomDelay = dist(gen);
+
+        this_thread::sleep_for(chrono::milliseconds(randomDelay));  // Simulate a process running
         currentLine++;
 
         // Get the current timestamp for logging progress
@@ -57,12 +65,12 @@ void Process::run(int coreIndex) {
         tm localtm;
         localtime_s(&localtm, &now);  // Use thread-safe localtime_s
         char timestamp[100];
-        strftime(timestamp, sizeof(timestamp), "%m/%d/%Y, %I:%M:%S %p", &localtm);
+        strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
         string currentTimestamp = string(timestamp);
 
         // Log the current progress to the text file
         if (outFile.is_open()) {
-            outFile << "(" << runTimestamp << ")" << " Core: " << coreIndex 
+            outFile << currentTimestamp << " Core:" << coreIndex
                 << " \"Hello world from " << processName << "!\"" << endl;
         }
     }
@@ -82,6 +90,6 @@ void Process::setTimestamp() {
     tm localtm;
     localtime_s(&localtm, &now);  // Use thread-safe localtime_s
     char timestamp[100];
-    strftime(timestamp, sizeof(timestamp), "%m/%d/%Y, %I:%M:%S %p", &localtm);
+    strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
     runTimestamp = string(timestamp);  // Store the formatted timestamp
 }

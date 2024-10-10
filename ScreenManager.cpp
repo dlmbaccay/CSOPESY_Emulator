@@ -1,9 +1,15 @@
 #include "ScreenManager.h"
 #include <iostream>
 #include <thread>
-#include <cstdlib>
+#include <iomanip>
+#include <format>
+#include <string>
+#include <map>
+#include <memory>
+#include <mutex>
 
 using namespace std;
+
 ScreenManager::ScreenManager(int cores) : coreCount(cores), availableCores(cores) {
     cpuCores = vector<bool>(cores, false);
     startScheduler();  // Start the scheduler when the ScreenManager is initialized
@@ -63,9 +69,7 @@ void ScreenManager::listProcess() {
     for (const auto& pair : processes) {
         if (pair.second->status == Process::Queued) {
             hasQueued = true;
-            cout << " - " << pair.first
-                << " | " << pair.second->currentLine << "/" 
-                << pair.second->totalLines << endl;
+            cout << format("{:>8}   {} / {}\n", pair.first, pair.second->currentLine, pair.second->totalLines);
         }
     }
     if (!hasQueued) {
@@ -73,16 +77,14 @@ void ScreenManager::listProcess() {
     }
 
     // Display running processes
-    cout << "---------------------------------------" << endl;
+    cout << endl;
     cout << "Running processes:" << endl;
     for (const auto& pair : processes) {
         if (pair.second->status == Process::Running) {
             hasRunning = true;
-            cout << " - " << pair.first
-                << " | " << pair.second->runTimestamp
-                << " | Core: " << pair.second->coreIndex
-                << " | " << pair.second->currentLine << "/" 
-                << pair.second->totalLines << endl;
+            cout << format("{:>8}   {}   Core: {}   {} / {}\n",
+                pair.first, pair.second->runTimestamp, pair.second->coreIndex,
+                pair.second->currentLine, pair.second->totalLines);
         }
     }
     if (!hasRunning) {
@@ -90,22 +92,23 @@ void ScreenManager::listProcess() {
     }
 
     // Display finished processes
-    cout << "---------------------------------------" << endl;
+    cout << endl;
     cout << "Finished processes:" << endl;
     for (const auto& pair : processes) {
         if (pair.second->status == Process::Finished) {
             hasFinished = true;
-            cout << " - " << pair.first
-                << " | " << pair.second->runTimestamp
-                << " | Finished" 
-                << " | " << pair.second->currentLine << "/"
-                << pair.second->totalLines << endl;
+            cout << format("{:>8}   {}   Finished   {} / {}\n",
+                pair.first, pair.second->runTimestamp,
+                pair.second->currentLine, pair.second->totalLines);
         }
     }
     if (!hasFinished) {
         cout << "   No finished processes." << endl;
     }
+    cout << "---------------------------------------" << endl;
+
 }
+
 
 
 void ScreenManager::startScheduler() {

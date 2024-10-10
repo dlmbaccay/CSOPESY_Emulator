@@ -18,7 +18,6 @@ static bool handleCommand(const string& command);
 int main() {
     for (int i = 1; i <= 10; ++i) {
         screenManager.createProcess("p" + to_string(i));
-        std::this_thread::sleep_for(std::chrono::milliseconds(40));  // 1-second delay between each process creation
     }
 
     system("cls");
