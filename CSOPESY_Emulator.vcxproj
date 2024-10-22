@@ -129,16 +129,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="CSOPESY_Emulator.cpp" />
-    <ClCompile Include="ScreenManager.cpp" />
+    <ClCompile Include="Scheduler.cpp" />
+    <ClCompile Include="ConsoleManager.cpp" />
     <ClCompile Include="Process.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Colors.h" />
-    <ClInclude Include="ScreenManager.h" />
+    <ClInclude Include="ConfigManager.h" />
+    <ClInclude Include="Scheduler.h" />
+    <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="Process.h" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="config.txt" />
     <Text Include="dump.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

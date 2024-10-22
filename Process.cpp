@@ -10,78 +10,45 @@ using namespace std;
 
 static int processCounter = 0; // Global process counter to assign unique IDs
 
-Process::Process(string name, int totalLines)
-    : processName(name), processId(++processCounter), currentLine(0), totalLines(totalLines), isActive(true), status(Queued), coreIndex(-1), runTimestamp() {
+Process::Process(string name, int minCommands, int maxCommands)
+    : processName(name), processId(++processCounter), commandIndex(0), isActive(true), status(READY), coreIndex(-1), runTimestamp() {
+    
+    // Seed the random number generator
+    random_device rd;
+    mt19937 gen(rd()); // Mersenne Twister engine for randomness
+    uniform_int_distribution<> dist(minCommands, maxCommands);
+
+    // Generate a random number of commands between minCommands and maxCommands
+    int numCommands = dist(gen);
+
+    // Fill the commands vector with "dummy instruction" strings
+    for (int i = 1; i <= numCommands; ++i) {
+        commands.push_back("dummy instruction " + to_string(i));
+    }
+
+    time_t now = time(0);
+    tm localtm;
+    localtime_s(&localtm, &now);  // Use thread-safe localtime_s
+    char timestamp[100];
+    strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
+	creationTimestamp = string(timestamp);  // Store the formatted timestamp
 }
 
 void Process::displayDetails() const {
     string statusString;
     switch (status) {
-        case Queued: statusString = "Queued"; break;
-        case Running: statusString = "Running"; break;
-        case Finished: statusString = "Finished"; break;
+	    case WAITING: statusString = "Waiting"; break;
+        case READY: statusString = "Ready"; break;
+        case RUNNING: statusString = "Running"; break;
+        case FINISHED: statusString = "Finished"; break;
     }
 
     cout << endl << "   Process: " << processName << endl;
     cout << "   ID: " << processId << endl;
     cout << "   Core:" << coreIndex << endl;
-    cout << "   Current instruction line: " << currentLine << " / " << totalLines << endl;
+    cout << "   Current instruction line: " << commandIndex << " / " << commands.size() << endl;
     cout << "   Run at: " << runTimestamp << endl;
-    cout << "   Status: " << statusString << endl << endl;
-}
-
-void Process::run(int coreIndex) {
-    this->coreIndex = coreIndex;  // Set the CPU core index
-    setTimestamp();  // Set the timestamp when the process starts running
-    status = Running;  // Mark the process as running
-
-    // Create a text file to store process information
-    string fileName = processName + "_log.txt";  // Generate file name based on process name
-    ofstream outFile(fileName, ios::out | ios::trunc);  // Open the file for writing and trunc if not empty
-
-    if (outFile.is_open()) {
-        // Write the initial process details into the file
-        outFile << "Process Name: " << processName << endl;
-        outFile << "Logs: " << endl << endl;
-    }
-    else {
-        cerr << "Error: Unable to open file for writing process details." << endl;
-    }
-
-    // Set up random delay generator (0 to 1000 milliseconds)
-    random_device rd;  // Random number generator
-    mt19937 gen(rd());  // Mersenne Twister engine for better randomness
-    uniform_int_distribution<> dist(20, 200);  // Generate random delay between 0 and 1000 ms
-
-    // Simulate process execution
-    while (isActive && currentLine < totalLines) {
-        int randomDelay = dist(gen);
-
-        this_thread::sleep_for(chrono::milliseconds(randomDelay));  // Simulate a process running
-        currentLine++;
-
-        // Get the current timestamp for logging progress
-        time_t now = time(0);
-        tm localtm;
-        localtime_s(&localtm, &now);  // Use thread-safe localtime_s
-        char timestamp[100];
-        strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
-        string currentTimestamp = string(timestamp);
-
-        // Log the current progress to the text file
-        if (outFile.is_open()) {
-            outFile << currentTimestamp << " Core:" << coreIndex
-                << " \"Hello world from " << processName << "!\"" << endl;
-        }
-    }
-
-    // Update the process status to finished in the log file
-    if (outFile.is_open()) {
-        outFile << endl << "Process " << processName << " has finished execution." << endl;
-        outFile.close();  // Close the file after logging completion
-    }
-
-    status = Finished;  // Mark the process as finished when done
+    cout << "   Status: " << status << endl << endl;
 }
 
 void Process::setTimestamp() {
@@ -92,4 +59,32 @@ void Process::setTimestamp() {
     char timestamp[100];
     strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
     runTimestamp = string(timestamp);  // Store the formatted timestamp
+}
+
+void Process::getNextCommand() {
+    if (commandIndex < commands.size()-1) {
+        commandIndex++;
+    }
+    else {
+        setStatus(FINISHED);
+    }
+}
+
+void Process::execute() {
+    commands[commandIndex];
+}
+
+void Process::processSMI() {
+    cout << endl;
+    cout << "Process: " << processName << endl;
+    cout << "ID: " << processId << endl << endl;
+    
+    if (status == FINISHED) {
+        cout << "Finished!" << endl << endl;
+    }
+    else {
+        cout << "Current instruction line: " << commandIndex+1 << endl;
+        cout << "Lines of code: " << commands.size() << endl << endl;
+    }
+
 }

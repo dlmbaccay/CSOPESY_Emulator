@@ -2,35 +2,55 @@
 #define PROCESS_H
 
 #include <string>
+#include <vector>
 
-/**
- * @class Process
- * Represents an individual process session.
- *
- * The Process class simulates a background process, tracking its progress
- * in terms of instruction lines. Each process has a unique process ID, a name,
- * and other attributes such as total lines and timestamps.
- */
+using namespace std;
+
 class Process {
 public:
-    enum Status { Queued, Running, Finished };
-    Status status;
+    // Constructor
+    Process(string name, int minCommands, int maxCommands);
+    ~Process() {}
 
-    std::string processName;
-    int processId;
-    int currentLine;
-    int totalLines;
-    std::string runTimestamp;
-    bool isActive;
-    int coreIndex;
-
-    Process(std::string name, int totalLines);
-
+    // Enum for process status
+    enum Status { WAITING, READY, RUNNING, FINISHED };
+    
+    // Public methods
     void displayDetails() const;
-
-    void run(int coreIndex);
-
+    void processSMI();
+    void getNextCommand();
+    void execute();
     void setTimestamp();
+    void setCoreIndex(int core) { coreIndex = core; }
+    void setStatus(Status newStatus) { status = newStatus; }
+
+	// Getters
+	string getProcessName() const { return processName; }
+	int getProcessId() const { return processId; }
+	Status getStatus() const { return status; }
+	bool getIsActive() const { return isActive; }
+	size_t getTotalCommands() const { return commands.size(); }
+    int getCommandIndex() const { return commandIndex; }
+	int getCoreIndex() const { return coreIndex; }
+	string getCreationTimestamp() const { return creationTimestamp; }
+	string getRunTimestamp() const { return runTimestamp; }
+
+	
+
+
+private:
+    // Private member variables
+    Status status;            // Process status
+    string processName;        // Name of the process
+    int processId;             // Unique ID for the process
+    vector<string> commands;   // List of commands for the process
+    int commandIndex;          // Current command being executed
+	string creationTimestamp;  // Timestamp when the process was created
+    string runTimestamp;       // Timestamp when the process starts running
+    bool isActive;             // Indicates if the process is active
+    int coreIndex;             // The core index the process is assigned to
+
+    // Private helper methods (if any) can go here
 };
 
 #endif // PROCESS_H
