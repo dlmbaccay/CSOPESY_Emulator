@@ -45,10 +45,10 @@ void Process::displayDetails() const {
 
     cout << endl << "   Process: " << processName << endl;
     cout << "   ID: " << processId << endl;
-    cout << "   Core:" << coreIndex << endl;
+    cout << "   Core: " << coreIndex << endl;
     cout << "   Current instruction line: " << commandIndex << " / " << commands.size() << endl;
     cout << "   Run at: " << runTimestamp << endl;
-    cout << "   Status: " << status << endl << endl;
+    cout << "   Status: " << statusString << endl << endl;
 }
 
 void Process::setTimestamp() {
@@ -71,7 +71,7 @@ void Process::getNextCommand() {
 }
 
 void Process::execute() {
-    commands[commandIndex];
+    // commands[commandIndex];
 }
 
 void Process::processSMI() {

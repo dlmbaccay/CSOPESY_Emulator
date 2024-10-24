@@ -15,7 +15,7 @@ class Scheduler {
 
 private:
     ConfigManager::SchedulerType schedulerType;
-    int timeQuantum;  // For Round-Robin scheduling
+    int quantumCycles;  // For Round-Robin scheduling
 	int delayPerExec;  // Delay between each instruction execution
 	int batchProcessFreq;  // Frequency of batch process creation
 
@@ -24,7 +24,6 @@ private:
     std::vector<std::shared_ptr<Process>> finishedProcesses; // Add finished processes here
     std::vector<bool> cpuCores;  // Keeps track of available CPU cores
     std::mutex schedulerMutex;
-    std::condition_variable cv;
     bool stopScheduler = false;
 
     void fcfsLoop();
@@ -34,13 +33,19 @@ public:
     Scheduler(ConfigManager* newConfig);
     ~Scheduler();
 
+    struct CpuUtilization
+    {
+        double utilization;
+        int availableCores;
+        int usedCores;
+    };
+
+
     void addProcess(Process* newProcess);
     void start();
-    void stop();
 
+    CpuUtilization getCpuUtilization();
     void displayCpuUtilization();
-
-
 };
 
 #endif // SCHEDULER_H

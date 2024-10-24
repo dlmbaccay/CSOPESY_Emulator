@@ -6,16 +6,16 @@
 Scheduler::Scheduler(ConfigManager* config) {
     
 	cpuCores.resize(config->getNumCpu(), false);
-	timeQuantum = config->getQuantumCycles();
+	quantumCycles = config->getQuantumCycles();
 	delayPerExec = config->getDelayPerExec();
 	batchProcessFreq = config->getBatchProcessFreq();
 	schedulerType = config->getSchedulerType();
 	this->start();  // Start the scheduler loop
-	stopScheduler = false;
+	
 }
 
 Scheduler::~Scheduler() {
-    stop();
+    
 }
 
 void Scheduler::start() {
@@ -31,9 +31,6 @@ void Scheduler::start() {
 		std::cerr << "Invalid scheduler type: " << schedulerType << std::endl;
 		return;
 	}
-	
-   /* std::thread schedulerThread(&Scheduler::schedulerLoop, this);
-    schedulerThread.detach();*/
 }
 
 void schedulerTest() {
@@ -46,37 +43,25 @@ void schedulerTest() {
 
 void Scheduler::addProcess(Process* newProcess) {
 	readyQueue.push(newProcess);
-    //std::cout << "Process '" << newProcess->getProcessName() << "' added to queue." << std::endl;
-	cv.notify_one();  // Notify the scheduler to start
 }
 
-void Scheduler::stop() {
-    {
-        std::lock_guard<std::mutex> lock(schedulerMutex);
-        stopScheduler = true;
-    }
-    cv.notify_all();  // Wake up any waiting threads to exit
+Scheduler::CpuUtilization Scheduler::getCpuUtilization() {
+	int availableCpuCores = std::count(cpuCores.begin(), cpuCores.end(), false);
+	double utilization = (static_cast<double>(cpuCores.size()) - availableCpuCores) / static_cast<double>(cpuCores.size()) * 100;
+	return { utilization, availableCpuCores, static_cast<int>(cpuCores.size()) - availableCpuCores };
 }
 
 void Scheduler::displayCpuUtilization() {
-	int availableCpuCores = 0;
-	for (auto core : cpuCores) {
-		if (!core) {
-			availableCpuCores++;
-		}
-	}
+	CpuUtilization util = getCpuUtilization();
 
-	float utilization = (static_cast<float>(cpuCores.size()) - availableCpuCores) / static_cast<float>(cpuCores.size());
-	
-	cout << "CPU utilization: " << utilization*100.0 << "%" << endl;
-	cout << "Cores used: " << (cpuCores.size() - availableCpuCores) << endl;
-	cout << "Cores available: " << availableCpuCores << endl << endl;
+	cout << "CPU utilization: " << util.utilization << "%" << endl;
+	cout << "Cores used: " << util.usedCores << endl;
+	cout << "Cores available: " << util.availableCores << endl << endl;
 }
 
 void Scheduler::fcfsLoop() {
 	while(true){
-		std::unique_lock<std::mutex> lock(schedulerMutex);
-		cv.wait(lock, [this] { return !readyQueue.empty() || stopScheduler; });
+		std::lock_guard<std::mutex> lock(schedulerMutex);
 		
 		for (int i = 0; i < cpuCores.size(); i++) {
 			if (!cpuCores[i] && !readyQueue.empty()) {
@@ -85,15 +70,29 @@ void Scheduler::fcfsLoop() {
 				cpuCores[i] = true;
 
 				process->setCoreIndex(i);
-				cout << process->getProcessName() << " assigned to core " << i << endl;
+
 				runningProcesses[process->getProcessName()] = std::thread([process, this] {
 					process->setStatus(Process::RUNNING);
 					process->setTimestamp();
+
+					int cpuCycle = 0;
+
 					while (process->getStatus() != Process::FINISHED) {
-						process->execute();
-						process->getNextCommand();
-						std::this_thread::sleep_for(std::chrono::milliseconds(200));
+						if (delayPerExec == 0) {
+							process->execute();
+							process->getNextCommand();
+						}
+						else if ((cpuCycle + 1) % (delayPerExec + 1) == 0) {
+							process->execute();
+							process->getNextCommand();
+						}
+						else {
+							// Busy-waiting cycle
+						}
+						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+						cpuCycle++;
 					}
+
 					std::lock_guard<std::mutex> lock(schedulerMutex);
 					cpuCores[process->getCoreIndex()] = false;
 					process->setCoreIndex(-1);
@@ -109,8 +108,7 @@ void Scheduler::fcfsLoop() {
 
 void Scheduler::rrLoop() {
 	while (true) {
-		std::unique_lock<std::mutex> lock(schedulerMutex);
-		cv.wait(lock, [this] { return !readyQueue.empty() || stopScheduler; });
+		std::lock_guard<std::mutex> lock(schedulerMutex);
 
 		for (int i = 0; i < cpuCores.size(); i++) {
 			if (!cpuCores[i] && !readyQueue.empty()) {
@@ -124,13 +122,27 @@ void Scheduler::rrLoop() {
 					process->setStatus(Process::RUNNING);
 					process->setTimestamp();
 					
-					int i = 0;
+					int cpuCycle = 0;
+					int executionCount = 0;
+
 					
-					while ((process->getStatus() != Process::FINISHED) && i < timeQuantum) {
-						process->execute();
-						process->getNextCommand();
-						std::this_thread::sleep_for(std::chrono::milliseconds(200));
-						i++;
+					while ((process->getStatus() != Process::FINISHED) && executionCount < quantumCycles) {
+						if (delayPerExec == 0) {
+							process->execute();
+							process->getNextCommand();
+							executionCount++;
+						}
+						else if ((cpuCycle + 1) % (delayPerExec+1) == 0) {
+							process->execute();
+							process->getNextCommand();
+							executionCount++;
+						}
+						else {
+							// Busy-waiting cycle
+						}
+						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+						cpuCycle++;
+						
 					}
 
 					std::lock_guard<std::mutex> lock(schedulerMutex);
@@ -143,7 +155,6 @@ void Scheduler::rrLoop() {
 						process->setStatus(Process::READY);
 						process->setCoreIndex(-1);
 						readyQueue.push(process);
-						cv.notify_one();
 					}
 					
 					});

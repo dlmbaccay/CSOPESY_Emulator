@@ -39,7 +39,6 @@ public:
 	Scheduler* getScheduler() const { return scheduler; }
 	ConfigManager* getConfig() const { return configManager; }
     std::map<std::string, Process*> getProcesses() const { return processes; }
-    
 
 
 };

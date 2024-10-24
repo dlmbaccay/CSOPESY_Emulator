@@ -59,25 +59,12 @@ void ConsoleManager::listProcess() {
         return;
     }
 
-    bool hasQueued = false, hasRunning = false, hasFinished = false;
+    bool hasRunning = false, hasFinished = false;
 
     scheduler->displayCpuUtilization();
 
-    // Display queued processes
+    // Display running processes
     cout << "---------------------------------------" << endl;
-    //cout << "Queued processes:" << endl;
-    //for (const auto& pair : processes) {
-    //    if (pair.second->getStatus() == Process::READY) {
-    //        hasQueued = true;
-    //        cout << format("{:>8}   {} / {}\n", pair.first, pair.second->getCommandIndex() + 1, pair.second->getTotalCommands());
-    //    }
-    //}
-    //if (!hasQueued) {
-    //    cout << "   No queued processes." << endl;
-    //}
-
-    //// Display running processes
-    //cout << endl;
     cout << "Running processes:" << endl;
     for (const auto& pair : processes) {
         if (pair.second->getStatus() == Process::RUNNING) {
@@ -111,12 +98,18 @@ void ConsoleManager::listProcess() {
 void ConsoleManager::schedulerTest() {
     std::thread([this]{
         schedulerTestRun = true;
-        int i = 1;
+        
+        int cpuCycles = 1;
+		int i = 1;
+
         while (schedulerTestRun) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(200)); // Placeholder for batch process frequency
-            string processName = "process" + to_string(i);
-            createProcess(processName);
-            i++;
+            if (cpuCycles % configManager->getBatchProcessFreq() == 0) {
+                string processName = "process" + to_string(i);
+                createProcess(processName);
+                i++;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            cpuCycles++;
         }
      }).detach();
     
@@ -133,9 +126,14 @@ void ConsoleManager::reportUtil() {
             return;
         }
 
-        bool hasQueued = false, hasRunning = false, hasFinished = false;
+        bool hasRunning = false, hasFinished = false;
 
 		// TODO: Print out cpu utilization to text file. scheduler->displayCpuUtilization();
+		Scheduler::CpuUtilization util = scheduler->getCpuUtilization();
+
+        outFile << "CPU utilization: " << util.utilization << "%" << endl;
+        outFile << "Cores used: " << util.usedCores << endl;
+        outFile << "Cores available: " << util.availableCores << endl << endl;
 
         // Display queued processes
         outFile << "---------------------------------------" << endl;
