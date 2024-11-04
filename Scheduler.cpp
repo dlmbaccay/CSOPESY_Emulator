@@ -33,14 +33,6 @@ void Scheduler::start() {
 	}
 }
 
-void schedulerTest() {
-	int i = 1;
-	while (true) {
-		string processName = "process" + i;
-		
-	}
-}
-
 void Scheduler::addProcess(Process* newProcess) {
 	readyQueue.push(newProcess);
 }
@@ -124,7 +116,6 @@ void Scheduler::rrLoop() {
 					
 					int cpuCycle = 0; // number of cpu cycles since process started
 					int executionCount = 0; // number of instructions executed by process, quantumCycles = number of instructions to execute
-
 					
 					while ((process->getStatus() != Process::FINISHED) && executionCount < quantumCycles) {
 						if (delayPerExec == 0) { // if delay is 0, no waiting cpu cycle for process; executes instructions immediately
@@ -137,12 +128,9 @@ void Scheduler::rrLoop() {
 							process->getNextCommand();
 							executionCount++;
 						}
-						else { 
-							// Busy-waiting cycle
-						}
-						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+						else {} // Busy-waiting cycle
+						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						cpuCycle++;
-						
 					}
 
 					std::lock_guard<std::mutex> lock(schedulerMutex);
@@ -156,12 +144,9 @@ void Scheduler::rrLoop() {
 						process->setCoreIndex(-1);
 						readyQueue.push(process);
 					}
-					
-					});
-
+				});
 				runningProcesses[process->getProcessName()].detach();
 			}
 		}
-
 	}
 }

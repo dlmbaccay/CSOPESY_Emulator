@@ -41,8 +41,6 @@ bool ConsoleManager::reattachProcess(const std::string& name) {
 
     if (processes.find(name) != processes.end()) {
         Process* process = processes[name];
-        //cout << "> Reattached to process: " << name << endl;
-        //process->displayDetails();
         return true;
     }
     else {
@@ -53,11 +51,6 @@ bool ConsoleManager::reattachProcess(const std::string& name) {
 
 void ConsoleManager::listProcess() {
     lock_guard<mutex> lock(processMutex);
-
-    if (processes.empty()) {
-        cout << "> No processes available." << endl;
-        return;
-    }
 
     bool hasRunning = false, hasFinished = false;
 
@@ -100,7 +93,7 @@ void ConsoleManager::schedulerTest() {
         schedulerTestRun = true;
         
         int cpuCycles = 1;
-		int i = 1;
+		    int i = 1;
 
         while (schedulerTestRun) {
             if (cpuCycles % configManager->getBatchProcessFreq() == 0) {
