@@ -200,6 +200,7 @@ bool ConsoleManager::handleCommand(const string& command) {
         if (!initialized) {
             if (command == "initialize") {
                 initialize();  // Initialize the system and load data from the file
+				cout << GREEN << "> Processor configuration initialized." << RESET << endl;
             }
             else if (command == "exit") {
                 // Exit the emulator
