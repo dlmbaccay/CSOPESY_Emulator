@@ -192,7 +192,6 @@ bool ConsoleManager::handleCommand(const string& command) {
         else if (command == "process-smi") {
            processes[currentSessionName]->processSMI();
         }
-
     }
 
     // If not in a session, process general commands
@@ -218,7 +217,7 @@ bool ConsoleManager::handleCommand(const string& command) {
                 return true;
             }
             else if (command == "initialize") {
-                // Command to initialize something
+				// Command to initialize processer configuration and scheduler
                 cout << GREEN << "> Already initialized." << RESET << endl;
             }
             else if (command.substr(0, 9) == "screen -s") {
@@ -241,8 +240,6 @@ bool ConsoleManager::handleCommand(const string& command) {
                     else {
                         cout << YELLOW << "> Error: Process already exists." << RESET << endl;
                     }
-
-
                 }
             }
             else if (command.substr(0, 9) == "screen -r") {
@@ -290,16 +287,18 @@ bool ConsoleManager::handleCommand(const string& command) {
             }
             else if (command == "help") {
                 // Display the list of available commands
-                cout << "> List of commands:" << endl
-                    << "    - initialize            (...)" << endl
-                    << "    - screen -s <name>      (start a session)" << endl
-                    << "    - screen -r <name>      (reattach to a session)" << endl
-                    << "    - screen -ls            (list all sessions)" << endl
-                    << "    - scheduler-test        (...)" << endl
-                    << "    - scheduler-stop        (...)" << endl
-                    << "    - report-util           (...)" << endl
-                    << "    - clear                 (clear the screen)" << endl
-                    << "    - exit                  (exit the emulator)" << endl;
+                cout << LIGHT_YELLOW << "> List of commands:" << endl
+                    << "    - initialize            (initializes processor configuration and scheduler based on config.txt)" << endl
+                    << "    - screen -s <name>      (start a new process)" << endl
+                    << "    - screen -r <name>      (reattaches to an existing process)" << endl
+                    << "    - screen -ls            (list all processes)" << endl
+                    << "    - process-smi           (prints process info, only applicable when attached to a process)" << endl
+                    << "    - scheduler-test        (starts the creation of dummy processes at configured intervals)" << endl
+                    << "    - scheduler-stop        (stops the creation of dummy processes initiated by scheduler-test)" << endl
+                    << "    - report-util           (generates a CPU utilization report and writes it to csopesy-log.txt)" << endl
+                    << "    - clear                 (clears the screen)" << endl
+					<< "    - help                  (displays list of commands)" << endl
+                    << "    - exit                  (exits the emulator)" << RESET << endl;
             }
             else if (command == "exit") {
                 // Exit the emulator

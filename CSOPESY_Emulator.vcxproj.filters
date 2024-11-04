@@ -49,7 +49,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="dump.txt" />
     <Text Include="config.txt" />
   </ItemGroup>
 </Project>
