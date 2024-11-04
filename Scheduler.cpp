@@ -122,22 +122,22 @@ void Scheduler::rrLoop() {
 					process->setStatus(Process::RUNNING);
 					process->setTimestamp();
 					
-					int cpuCycle = 0;
-					int executionCount = 0;
+					int cpuCycle = 0; // number of cpu cycles since process started
+					int executionCount = 0; // number of instructions executed by process, quantumCycles = number of instructions to execute
 
 					
 					while ((process->getStatus() != Process::FINISHED) && executionCount < quantumCycles) {
-						if (delayPerExec == 0) {
+						if (delayPerExec == 0) { // if delay is 0, no waiting cpu cycle for process; executes instructions immediately
+							process->execute();
+							process->getNextCommand();
+							executionCount++;
+						} 
+						else if ((cpuCycle + 1) % (delayPerExec + 1) == 0) { // if delay is not 0, waiting cpu cycle for process
 							process->execute();
 							process->getNextCommand();
 							executionCount++;
 						}
-						else if ((cpuCycle + 1) % (delayPerExec+1) == 0) {
-							process->execute();
-							process->getNextCommand();
-							executionCount++;
-						}
-						else {
+						else { 
 							// Busy-waiting cycle
 						}
 						std::this_thread::sleep_for(std::chrono::milliseconds(100));

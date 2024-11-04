@@ -17,6 +17,10 @@ private:
 	ConfigManager* configManager;
     Scheduler* scheduler;
 
+	string currentSessionName;
+    bool inSession = false;
+    bool initialized = false;
+
     bool schedulerTestRun = false;
 
     std::mutex processMutex;
@@ -24,6 +28,8 @@ private:
 public:
     ConsoleManager();
     ~ConsoleManager();
+
+	void printHeader();
 
     bool createProcess(const std::string& name);
 
@@ -36,9 +42,16 @@ public:
 
     void reportUtil();
 
+    void initialize();
+	bool handleCommand(const std::string& command);
+
 	Scheduler* getScheduler() const { return scheduler; }
 	ConfigManager* getConfig() const { return configManager; }
     std::map<std::string, Process*> getProcesses() const { return processes; }
+	string getCurrentSessionName() const { return currentSessionName; }
+	bool isInSession() const { return inSession; }
+
+	void setCurrentSessionName(const std::string& name) { currentSessionName = name; }
 
 
 };
