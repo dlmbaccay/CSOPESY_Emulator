@@ -106,6 +106,7 @@ Once the program is running, you can use the following commands to interact with
 
 -   **`process-smi`**
     Prints simple information of the process. Applicable when attached to a process.
+
     ```bash
      process-smi
     ```
@@ -118,13 +119,13 @@ Once the program is running, you can use the following commands to interact with
 /process-scheduler-cli
 │
 ├── CSOPESY_emulator.cpp       # Entry point for the application
-├── ConfigManager.cpp          # Placeholder
+├── ConfigManager.cpp          # Handles the processor configuration
 ├── ConfigManager.h            # Header file for ConfigManager
-├── ConsoleManager.cpp         # Placeholder
+├── ConsoleManager.cpp         # Handles console input/output and UI interactions
 ├── ConsoleManager.h           # Header file for ConsoleManager
-├── Process.cpp                # Placholder
+├── Process.cpp                # Defines the structure and behavior of a process
 ├── Process.h                  # Header file for Process
-├── Scheduler.cpp              # Placholder
+├── Scheduler.cpp              # Implements the scheduling algorithm (e.g., FCFS, SJF, Priority)
 ├── Scheduler.h                # Header file for scheduler
 └── README.md                  # Project documentation
 ```
