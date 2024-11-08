@@ -10,17 +10,20 @@
 #include <map>
 #include <condition_variable>
 #include "ConfigManager.h"
+#include "MemoryAllocator.h"
 
 class Scheduler {
 
 private:
+  MemoryAllocator* memAllocator;
+
     ConfigManager::SchedulerType schedulerType;
     int quantumCycles;  // For Round-Robin scheduling
-	int delayPerExec;  // Delay between each instruction execution
-	int batchProcessFreq;  // Frequency of batch process creation
+	  int delayPerExec;  // Delay between each instruction execution
+	  int batchProcessFreq;  // Frequency of batch process creation
 
     std::queue<Process*> readyQueue; // All processes ready to go once a thread yields
-	std::map<std::string, std::thread> runningProcesses; // Processes currently running
+	  std::map<std::string, std::thread> runningProcesses; // Processes currently running
     std::vector<std::shared_ptr<Process>> finishedProcesses; // Add finished processes here
     std::vector<bool> cpuCores;  // Keeps track of available CPU cores
     std::mutex schedulerMutex;
@@ -30,7 +33,7 @@ private:
     void rrLoop();
 
 public:
-    Scheduler(ConfigManager* newConfig);
+    Scheduler(ConfigManager* newConfig, MemoryAllocator* resManager);
     ~Scheduler();
 
     struct CpuUtilization

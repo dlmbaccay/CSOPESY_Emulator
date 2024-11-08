@@ -23,8 +23,9 @@ public:
 	int getMinIns() { return minIns; };
 	int getMaxIns() { return maxIns; };
 	int getDelayPerExec() { return delayPerExec; };
-
-	
+	int getMaxOverallMem() { return maxOverallMem; };
+	int getMemPerFrame() { return memPerFrame; };
+	int getMemPerProcess() { return memPerProcess; };
 
 private:
 	int numCpu;
@@ -34,5 +35,8 @@ private:
 	int minIns;
 	int maxIns;
 	int delayPerExec;
+	int maxOverallMem;
+	int memPerFrame;
+	int memPerProcess;
 };
 #endif // CONFIGMANAGER_H

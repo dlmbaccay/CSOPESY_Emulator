@@ -167,7 +167,8 @@ void ConsoleManager::reportUtil() {
 
 void ConsoleManager::initialize(){
 	configManager = new ConfigManager();
-	scheduler = new Scheduler(configManager);
+  MemoryAllocator* memAllocator = new MemoryAllocator(configManager);
+	scheduler = new Scheduler(configManager, memAllocator);
 	initialized = true;
 }
 

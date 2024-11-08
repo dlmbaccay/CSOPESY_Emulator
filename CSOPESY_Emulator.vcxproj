@@ -131,6 +131,7 @@
   <ItemGroup>
     <ClCompile Include="ConfigManager.cpp" />
     <ClCompile Include="CSOPESY_Emulator.cpp" />
+    <ClCompile Include="MemoryAllocator.cpp" />
     <ClCompile Include="Scheduler.cpp" />
     <ClCompile Include="ConsoleManager.cpp" />
     <ClCompile Include="Process.cpp" />
@@ -138,6 +139,7 @@
   <ItemGroup>
     <ClInclude Include="Colors.h" />
     <ClInclude Include="ConfigManager.h" />
+    <ClInclude Include="MemoryAllocator.h" />
     <ClInclude Include="Scheduler.h" />
     <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="Process.h" />

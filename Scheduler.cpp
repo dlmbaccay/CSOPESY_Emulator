@@ -3,8 +3,8 @@
 #include <iostream>
 #include <chrono>
 
-Scheduler::Scheduler(ConfigManager* config) {
-    
+Scheduler::Scheduler(ConfigManager* config, MemoryAllocator* resManager) {
+	memAllocator = resManager;
 	cpuCores.resize(config->getNumCpu(), false);
 	quantumCycles = config->getQuantumCycles();
 	delayPerExec = config->getDelayPerExec();
@@ -105,46 +105,69 @@ void Scheduler::rrLoop() {
 		for (int i = 0; i < cpuCores.size(); i++) {
 			if (!cpuCores[i] && !readyQueue.empty()) {
 				Process* process = readyQueue.front();
+
+				// Attempt to allocate memory if the process isn't already in memory
+				if (runningProcesses.find(process->getProcessName()) == runningProcesses.end() &&
+					!memAllocator->addProcessMemory(process)) {
+					// Memory allocation failed, so re-queue to try later
+					readyQueue.push(readyQueue.front());
+					readyQueue.pop();
+					continue;
+				}
+
+				// Memory allocation successful or process already in memory
 				readyQueue.pop();
 				cpuCores[i] = true;
-
 				process->setCoreIndex(i);
 
+				// Start a thread for the process execution
 				runningProcesses[process->getProcessName()] = std::thread([process, this] {
 					process->setStatus(Process::RUNNING);
 					process->setTimestamp();
-					
-					int cpuCycle = 0; // number of cpu cycles since process started
-					int executionCount = 0; // number of instructions executed by process, quantumCycles = number of instructions to execute
-					
+
+					int cpuCycle = 0;
+					int executionCount = 0;
+
+					// Execute process instructions within its quantum
 					while ((process->getStatus() != Process::FINISHED) && executionCount < quantumCycles) {
-						if (delayPerExec == 0) { // if delay is 0, no waiting cpu cycle for process; executes instructions immediately
-							process->execute();
-							process->getNextCommand();
-							executionCount++;
-						} 
-						else if ((cpuCycle + 1) % (delayPerExec + 1) == 0) { // if delay is not 0, waiting cpu cycle for process
+						if (delayPerExec == 0) {
 							process->execute();
 							process->getNextCommand();
 							executionCount++;
 						}
-						else {} // Busy-waiting cycle
+						else if ((cpuCycle + 1) % (delayPerExec + 1) == 0) {
+							process->execute();
+							process->getNextCommand();
+							executionCount++;
+						}
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						cpuCycle++;
 					}
 
+					// Lock to safely update shared resources
 					std::lock_guard<std::mutex> lock(schedulerMutex);
+
+					// Release CPU core
 					cpuCores[process->getCoreIndex()] = false;
+
 					if (process->getStatus() == Process::FINISHED) {
-						process->setCoreIndex(-1);
+						// Process completed, remove from memory and move to finished queue
+						memAllocator->removeProcessMemory(process);
 						finishedProcesses.push_back(std::shared_ptr<Process>(process));
+						runningProcesses.erase(process->getProcessName());
 					}
 					else {
+						// Process quantum expired, re-queue without deallocating memory
 						process->setStatus(Process::READY);
-						process->setCoreIndex(-1);
 						readyQueue.push(process);
 					}
-				});
+
+					// Log memory usage after each cycle
+					//memAllocator->showMemoryUsage();
+					memAllocator->logMemoryUsage(executionCount);
+					});
+
+				// Detach the thread to allow it to run independently
 				runningProcesses[process->getProcessName()].detach();
 			}
 		}
