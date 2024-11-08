@@ -140,14 +140,13 @@ void Scheduler::rrLoop() {
 							process->getNextCommand();
 							executionCount++;
 						}
+						memAllocator->logMemoryUsage(process->getCoreIndex(), cpuCycle);
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						cpuCycle++;
 					}
 
-					// Lock to safely update shared resources
 					std::lock_guard<std::mutex> lock(schedulerMutex);
 
-					// Release CPU core
 					cpuCores[process->getCoreIndex()] = false;
 
 					if (process->getStatus() == Process::FINISHED) {
@@ -164,7 +163,7 @@ void Scheduler::rrLoop() {
 
 					// Log memory usage after each cycle
 					//memAllocator->showMemoryUsage();
-					memAllocator->logMemoryUsage(executionCount);
+					
 					});
 
 				// Detach the thread to allow it to run independently

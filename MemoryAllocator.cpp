@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-
+#include <filesystem>
 
 MemoryAllocator::MemoryAllocator(ConfigManager* configManager)
 {
@@ -92,10 +92,13 @@ void MemoryAllocator::removeProcessMemory(Process* process)
 }
 
 // print out to text file in file name memory_stamp_<qq> where qq is current quantum cycle
-void MemoryAllocator::logMemoryUsage(int qq) {
+void MemoryAllocator::logMemoryUsage(int core, int qq) {
 
   // Create the filename with the current quantum cycle
-	std::string filename = "memory_stamps/memory_stamp_" + std::to_string(qq) + ".txt";
+  std::string directory = "memory_stamps/threads_" + std::to_string(core);
+  std::filesystem::create_directories(directory);
+
+  std::string filename = directory + "/memory_stamp_" + std::to_string(qq) + ".txt";
 
   // Open the file for writing
   std::ofstream outputFile(filename);

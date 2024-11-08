@@ -12,7 +12,7 @@ class MemoryAllocator
 		~MemoryAllocator();
 			
 		void showMemoryUsage();
-		void logMemoryUsage(int qq);
+		void logMemoryUsage(int core, int qq);
 		bool addProcessMemory(Process* process);
 		void removeProcessMemory(Process* process);
 
