@@ -116,7 +116,6 @@ Once the program is running, you can use the following commands to interact with
 ## File Structure
 
 ```
-/process-scheduler-cli
 │
 ├── CSOPESY_emulator.cpp       # Entry point for the application
 ├── ConfigManager.cpp          # Handles the processor configuration
@@ -127,5 +126,7 @@ Once the program is running, you can use the following commands to interact with
 ├── Process.h                  # Header file for Process
 ├── Scheduler.cpp              # Implements the scheduling algorithm (e.g., FCFS, SJF, Priority)
 ├── Scheduler.h                # Header file for scheduler
+├── MemoryAllocator.cpp        # Manages memory allocation, deallocation, and usage per quantum cycle
+├── MemoryAllocator.h          # Header file for MemoryAllocator
 └── README.md                  # Project documentation
 ```
