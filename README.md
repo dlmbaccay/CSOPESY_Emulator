@@ -115,7 +115,7 @@ Once the program is running, you can use the following commands to interact with
 
 ## File Structure
 
-``
+```
 │
 ├── CSOPESY_emulator.cpp       # Entry point for the application
 ├── ConfigManager.cpp          # Handles the processor configuration
