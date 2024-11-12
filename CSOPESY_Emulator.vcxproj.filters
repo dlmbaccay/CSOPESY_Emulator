@@ -55,6 +55,8 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="config.txt" />
+    <Text Include="config.txt">
+      <Filter>Source Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

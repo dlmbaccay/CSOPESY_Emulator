@@ -140,10 +140,13 @@ void Scheduler::rrLoop() {
 							process->getNextCommand();
 							executionCount++;
 						}
-						memAllocator->logMemoryUsage(process->getCoreIndex(), cpuCycle);
+						
 						std::this_thread::sleep_for(std::chrono::milliseconds(20));
 						cpuCycle++;
 					}
+
+					memAllocator->setQuantumCycles(memAllocator->getQuantumCycles() + 1);
+					memAllocator->logMemoryUsage();
 
 					std::lock_guard<std::mutex> lock(schedulerMutex);
 

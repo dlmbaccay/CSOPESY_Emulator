@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include "Process.h"
+#include <mutex>
 
 class MemoryAllocator
 {
@@ -12,15 +13,21 @@ class MemoryAllocator
 		~MemoryAllocator();
 			
 		void showMemoryUsage();
-		void logMemoryUsage(int core, int qq);
+		void logMemoryUsage();
 		bool addProcessMemory(Process* process);
 		void removeProcessMemory(Process* process);
+
+		int getQuantumCycles() const { return quantumCycles; } // Homework 8
+		void setQuantumCycles(int cycles) { quantumCycles = cycles; } // Homework 8
 
 
 	private:
 		int maxOverallMem; // max overall memory
 		int memPerFrame; // memory per frame
 		int memPerProcess; // memory per process
+
+		int quantumCycles; // Homework 8
+		
 
 		struct ProcessMemory {
 			string processName;
@@ -35,6 +42,9 @@ class MemoryAllocator
 		int totalSlots;
 		std::vector<bool> memorySlots;
 		std::unordered_map<std::string, int> processMap;
+
+		std::mutex mapMutex;
+		std::mutex logMutex;
 
 		int calculateExternalFrag() const;
 		
