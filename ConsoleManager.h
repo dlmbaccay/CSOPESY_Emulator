@@ -16,6 +16,7 @@ private:
 
 	ConfigManager* configManager;
     Scheduler* scheduler;
+		MemoryAllocator* memoryAllocator;
 
 	string currentSessionName;
     bool inSession = false;
@@ -41,6 +42,9 @@ public:
     void schedulerTestStop() { schedulerTestRun = false; };
 
     void reportUtil();
+
+		void vmStat() const;
+    void processSMI();
 
     void initialize();
 	bool handleCommand(const std::string& command);

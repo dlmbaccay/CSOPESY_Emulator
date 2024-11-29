@@ -18,7 +18,8 @@ ConfigManager::ConfigManager()
 	delayPerExec = 0;
 	maxOverallMem = 0;
 	memPerFrame = 0;
-	memPerProcess = 0;
+	minMemPerProcess = 0;
+	maxMemPerProcess = 0;
 	readConfig();
 }
 
@@ -68,9 +69,12 @@ void ConfigManager::readConfig() {
 				else if (line.find("mem-per-frame") == 0) {
 					memPerFrame = stoi(line.substr(14));  // Parse mem-per-frame value
 				}
-				else if (line.find("mem-per-proc") == 0) {
-					memPerProcess = stoi(line.substr(13));  // Parse mem-per-process value
+				else if (line.find("min-mem-per-proc") == 0) {
+					minMemPerProcess = stoi(line.substr(17));  // Parse mem-per-process value
 				}
+        else if (line.find("max-mem-per-proc") == 0) {
+          maxMemPerProcess = stoi(line.substr(17));  // Parse mem-per-process value
+        }
 
     }
 
@@ -100,5 +104,6 @@ void ConfigManager::displayConfig() {
 	std::cout << "Delay per execution: " << delayPerExec << std::endl;
 	std::cout << "Max overall memory: " << maxOverallMem << std::endl;
 	std::cout << "Memory per frame: " << memPerFrame << std::endl;
-	std::cout << "Memory per process: " << memPerProcess << std::endl;
+	std::cout << "Min Memory per process: " << minMemPerProcess << std::endl;
+	std::cout << "Max Memory per process: " << maxMemPerProcess << std::endl;
 }

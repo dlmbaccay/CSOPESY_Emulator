@@ -25,7 +25,7 @@ bool ConsoleManager::createProcess(const std::string& name) {
     lock_guard<mutex> lock(processMutex);
 
     if (processes.find(name) == processes.end()) {
-        Process* process = new Process(name, configManager->getMinIns(), configManager->getMaxIns());
+        Process* process = new Process(name, configManager->getMinIns(), configManager->getMaxIns(), configManager->getMinMemPerProcess(), configManager->getMaxMemPerProcess(), configManager->getMemPerFrame());
         processes[name] = process;
         scheduler->addProcess(process);  // Add process to scheduler
         return true;
@@ -167,8 +167,8 @@ void ConsoleManager::reportUtil() {
 
 void ConsoleManager::initialize(){
 	configManager = new ConfigManager();
-  MemoryAllocator* memAllocator = new MemoryAllocator(configManager);
-	scheduler = new Scheduler(configManager, memAllocator);
+  memoryAllocator = new MemoryAllocator(configManager->getMaxOverallMem(), configManager->getMemPerFrame(), configManager->getMinMemPerProcess(), configManager->getMaxMemPerProcess());
+	scheduler = new Scheduler(configManager, memoryAllocator);
 	initialized = true;
 }
 
@@ -299,6 +299,12 @@ bool ConsoleManager::handleCommand(const string& command) {
                 cout << "> Exiting emulator..." << endl;
                 exit(0);
             }
+            else if (command == "process-smi") {
+              processSMI();
+            }
+            else if (command == "vmstat") {
+              vmStat();
+            }
             else {
                 // Handle unrecognized command
                 cout << "> Unrecognized command: " << command << endl;
@@ -320,4 +326,75 @@ void ConsoleManager::printHeader() {
         << GREEN << "/_/ \\_\\_|\\_|___|_|  |_|" << WHITE << "\\___/|___/ " << endl
         << GREEN << "\nWelcome to ANIMOS Command Line Emulator!" << endl
         << LIGHT_YELLOW << "\nType 'help' to view all commands\n" << RESET << endl;
+}
+
+void ConsoleManager::processSMI() {
+	int usedMemory = memoryAllocator->calculateNumberofProcesses() * memoryAllocator->getMinMemPerProc();
+    int freeMemory = memoryAllocator->getMaxOverallMem() - usedMemory;
+
+    cout << "--------------------------------------------\n";
+    cout << "| PROCESS-SMI V01.00 Driver Version 01.00 |\n";
+    cout << "--------------------------------------------\n";
+    cout << "Total Memory: " << memoryAllocator->getMaxOverallMem() << " KB\n";
+    cout << "Used Memory: " << usedMemory << " KB\n";
+    cout << "Free Memory: " << freeMemory << " KB\n";
+    cout << "--------------------------------------------\n";
+    cout << "Running Processes:\n";
+
+    for (const auto& it : processes) {
+			Process* process = it.second;
+        if (process->getStatus() == Process::RUNNING) {
+			if (process->getMemorySize() > 0) {
+				cout << process->getProcessName() << " - Memory: "
+					<< process->getMemorySize() << " KB\n";
+			}
+        }
+    }
+
+}
+
+void ConsoleManager::vmStat() const {
+  mutex processMutex;
+  lock_guard<mutex> lock(processMutex);
+
+  // Memory statistics
+  size_t totalMemory = memoryAllocator->getMaxOverallMem();
+  size_t usedMemory = memoryAllocator->calculateUsedMemory();
+  size_t freeMemory = totalMemory - usedMemory;
+
+  // CPU ticks
+  size_t idleTicks = 0;
+  size_t activeTicks = 0;
+  size_t totalTicks = 0;
+  for (const auto& core : scheduler->getCpuCores()) {
+    if (core) { // Core is active
+      activeTicks++;
+    }
+    else { // Core is idle
+      idleTicks++;
+    }
+  }
+  totalTicks = idleTicks + activeTicks;
+
+  // Paging statistics
+  size_t numPagedIn = memoryAllocator->getPagedInCount();
+  size_t numPagedOut = memoryAllocator->getPagedOutCount();
+
+  // Display the statistics
+  cout << "--------------------------------------------\n";
+  cout << "| VIRTUAL MEMORY STATISTICS               |\n";
+  cout << "--------------------------------------------\n";
+  cout << "Total Memory (KB): " << totalMemory << "\n";
+  cout << "Used Memory (KB): " << usedMemory << "\n";
+  cout << "Free Memory (KB): " << freeMemory << "\n";
+  cout << "--------------------------------------------\n";
+  cout << "CPU Statistics:\n";
+  cout << "Idle CPU Ticks: " << idleTicks << "\n";
+  cout << "Active CPU Ticks: " << activeTicks << "\n";
+  cout << "Total CPU Ticks: " << totalTicks << "\n";
+  cout << "--------------------------------------------\n";
+  cout << "Paging Statistics:\n";
+  cout << "Number of Pages Paged In: " << numPagedIn << "\n";
+  cout << "Number of Pages Paged Out: " << numPagedOut << "\n";
+  cout << "--------------------------------------------\n";
 }

@@ -48,6 +48,8 @@ public:
     void start();
 
     CpuUtilization getCpuUtilization();
+    std::vector<bool> getCpuCores() { return cpuCores; };
+
     void displayCpuUtilization();
 };
 

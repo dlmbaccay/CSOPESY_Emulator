@@ -10,7 +10,7 @@ using namespace std;
 
 static int processCounter = 0; // Global process counter to assign unique IDs
 
-Process::Process(string name, int minCommands, int maxCommands)
+Process::Process(string name, int minCommands, int maxCommands, int minSize, int maxSize, int memPerFrame)
     : processName(name), processId(++processCounter), commandIndex(0), isActive(true), status(READY), coreIndex(-1), runTimestamp() {
     
     // Seed the random number generator
@@ -26,12 +26,17 @@ Process::Process(string name, int minCommands, int maxCommands)
         commands.push_back("dummy instruction " + to_string(i));
     }
 
+		// Generate a random memory size between minSize and maxSize
+		uniform_int_distribution<> distSize(minSize, maxSize);
+		memorySize = distSize(gen);
+		numPages = memorySize / memPerFrame;
+
     time_t now = time(0);
     tm localtm;
     localtime_s(&localtm, &now);  // Use thread-safe localtime_s
     char timestamp[100];
     strftime(timestamp, sizeof(timestamp), "(%m/%d/%Y %I:%M:%S%p)", &localtm);
-	creationTimestamp = string(timestamp);  // Store the formatted timestamp
+	  creationTimestamp = string(timestamp);  // Store the formatted timestamp
 }
 
 void Process::displayDetails() const {

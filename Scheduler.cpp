@@ -108,7 +108,7 @@ void Scheduler::rrLoop() {
 
 				// Attempt to allocate memory if the process isn't already in memory
 				if (runningProcesses.find(process->getProcessName()) == runningProcesses.end() &&
-					!memAllocator->addProcessMemory(process)) {
+					!memAllocator->allocateMemory(process->getProcessId())) {
 					// Memory allocation failed, so re-queue to try later
 					readyQueue.push(readyQueue.front());
 					readyQueue.pop();
@@ -145,16 +145,13 @@ void Scheduler::rrLoop() {
 						cpuCycle++;
 					}
 
-					memAllocator->setQuantumCycles(memAllocator->getQuantumCycles() + 1);
-					memAllocator->logMemoryUsage();
-
 					std::lock_guard<std::mutex> lock(schedulerMutex);
 
 					cpuCores[process->getCoreIndex()] = false;
 
 					if (process->getStatus() == Process::FINISHED) {
 						// Process completed, remove from memory and move to finished queue
-						memAllocator->removeProcessMemory(process);
+						memAllocator->freeMemory(process->getProcessId());
 						finishedProcesses.push_back(std::shared_ptr<Process>(process));
 						runningProcesses.erase(process->getProcessName());
 					}
@@ -164,9 +161,6 @@ void Scheduler::rrLoop() {
 						readyQueue.push(process);
 					}
 
-					// Log memory usage after each cycle
-					//memAllocator->showMemoryUsage();
-					
 					});
 
 				// Detach the thread to allow it to run independently

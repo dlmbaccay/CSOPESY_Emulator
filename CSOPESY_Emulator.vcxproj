@@ -24,6 +24,7 @@
     <ProjectGuid>{d77e6533-5363-4a49-85fd-a041f6dde29a}</ProjectGuid>
     <RootNamespace>CSOPESYEmulator</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>CSOPESY_Emulator</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -137,6 +138,7 @@
     <ClCompile Include="Process.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BackingStore.h" />
     <ClInclude Include="Colors.h" />
     <ClInclude Include="ConfigManager.h" />
     <ClInclude Include="MemoryAllocator.h" />

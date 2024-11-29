@@ -9,7 +9,7 @@ using namespace std;
 class Process {
 public:
     // Constructor
-    Process(string name, int minCommands, int maxCommands);
+    Process(string name, int minCommands, int maxCommands, int minSize, int maxSize, int memPerFrame);
     ~Process() {}
 
     // Enum for process status
@@ -34,6 +34,8 @@ public:
 	int getCoreIndex() const { return coreIndex; }
 	string getCreationTimestamp() const { return creationTimestamp; }
 	string getRunTimestamp() const { return runTimestamp; }
+	int getMemorySize() const { return memorySize; }
+	int getNumPages() const { return numPages; }
 
 	
 
@@ -49,8 +51,8 @@ private:
     string runTimestamp;       // Timestamp when the process starts running
     bool isActive;             // Indicates if the process is active
     int coreIndex;             // The core index the process is assigned to
-
-    // Private helper methods (if any) can go here
+    int memorySize; 
+    int numPages;
 };
 
 #endif // PROCESS_H
