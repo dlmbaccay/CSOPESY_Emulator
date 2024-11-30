@@ -108,7 +108,6 @@ void Scheduler::rrLoop() {
 
 		for (int i = 0; i < cpuCores.size(); i++) {
 			if (!cpuCores[i] && !readyQueue.empty()) {
-				//runningProcesses.find(process->getProcessName()) == runningProcesses.end() &&
 				Process* process = readyQueue.front();
 				// Attempt to allocate memory if the process isn't already in memory
 				if (!memAllocator->isProcessInMemory(process)) {

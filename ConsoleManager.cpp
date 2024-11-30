@@ -291,6 +291,8 @@ bool ConsoleManager::handleCommand(const string& command) {
                     << "    - scheduler-stop        (stops the creation of dummy processes initiated by scheduler-test)" << endl
                     << "    - report-util           (generates a CPU utilization report and writes it to csopesy-log.txt)" << endl
                     << "    - clear                 (clears the screen)" << endl
+                  << "    - process-smi                (prints memory utilization and running processes with memory)" << endl
+									<< "    - vmstat                (prints CPU utilization and memory stats)" << endl
 					<< "    - help                  (displays list of commands)" << endl
                     << "    - exit                  (exits the emulator)" << RESET << endl;
             }
