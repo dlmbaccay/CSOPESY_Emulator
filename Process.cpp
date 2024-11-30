@@ -28,8 +28,8 @@ Process::Process(string name, int minCommands, int maxCommands, int minSize, int
 
 		// Generate a random memory size between minSize and maxSize
 		uniform_int_distribution<> distSize(minSize, maxSize);
-		memorySize = distSize(gen);
-		numPages = memorySize / memPerFrame;
+    memorySize = minSize;
+		numPages = distSize(gen) / memPerFrame;
 
     time_t now = time(0);
     tm localtm;

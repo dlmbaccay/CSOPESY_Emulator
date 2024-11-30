@@ -99,22 +99,29 @@ void Scheduler::fcfsLoop() {
 }
 
 void Scheduler::rrLoop() {
+	std::chrono::time_point<std::chrono::high_resolution_clock> lastIdleTickTime = std::chrono::high_resolution_clock::now();
+
 	while (true) {
 		std::lock_guard<std::mutex> lock(schedulerMutex);
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastIdleTickTime);
 
 		for (int i = 0; i < cpuCores.size(); i++) {
 			if (!cpuCores[i] && !readyQueue.empty()) {
+				//runningProcesses.find(process->getProcessName()) == runningProcesses.end() &&
 				Process* process = readyQueue.front();
-
 				// Attempt to allocate memory if the process isn't already in memory
-				if (runningProcesses.find(process->getProcessName()) == runningProcesses.end() &&
-					!memAllocator->allocateMemory(process->getProcessId())) {
-					// Memory allocation failed, so re-queue to try later
-					readyQueue.push(readyQueue.front());
-					readyQueue.pop();
-					continue;
+				if (!memAllocator->isProcessInMemory(process)) {
+					if (memAllocator->backingStoreSet.contains(process->getProcessName())) {
+						process = memAllocator->loadProcessFromBackingStore(process->getProcessName());
+					}
+					if (!memAllocator->allocateMemory(process)) {
+						// Memory allocation failed, so re-queue to try later
+						readyQueue.push(readyQueue.front());
+						readyQueue.pop();
+						continue;
+					}
 				}
-
 				// Memory allocation successful or process already in memory
 				readyQueue.pop();
 				cpuCores[i] = true;
@@ -134,10 +141,12 @@ void Scheduler::rrLoop() {
 							process->execute();
 							process->getNextCommand();
 							executionCount++;
+							activeCpuTicks += 1;
 						}
 						else if ((cpuCycle + 1) % (delayPerExec + 1) == 0) {
 							process->execute();
 							process->getNextCommand();
+							activeCpuTicks += 1;
 							executionCount++;
 						}
 						
@@ -151,7 +160,7 @@ void Scheduler::rrLoop() {
 
 					if (process->getStatus() == Process::FINISHED) {
 						// Process completed, remove from memory and move to finished queue
-						memAllocator->freeMemory(process->getProcessId());
+						memAllocator->deallocateMemory(process);
 						finishedProcesses.push_back(std::shared_ptr<Process>(process));
 						runningProcesses.erase(process->getProcessName());
 					}
@@ -165,6 +174,12 @@ void Scheduler::rrLoop() {
 
 				// Detach the thread to allow it to run independently
 				runningProcesses[process->getProcessName()].detach();
+			}
+			else if (!cpuCores[i]) {
+				if (duration.count() >= 20) {
+					idleCpuTicks += 1;
+					lastIdleTickTime = std::chrono::high_resolution_clock::now();
+				}
 			}
 		}
 	}

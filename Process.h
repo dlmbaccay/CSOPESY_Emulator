@@ -30,7 +30,7 @@ public:
 	Status getStatus() const { return status; }
 	bool getIsActive() const { return isActive; }
 	size_t getTotalCommands() const { return commands.size(); }
-    int getCommandIndex() const { return commandIndex; }
+  int getCommandIndex() const { return commandIndex; }
 	int getCoreIndex() const { return coreIndex; }
 	string getCreationTimestamp() const { return creationTimestamp; }
 	string getRunTimestamp() const { return runTimestamp; }

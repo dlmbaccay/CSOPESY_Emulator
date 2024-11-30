@@ -43,9 +43,6 @@ public:
 
     void reportUtil();
 
-		void vmStat() const;
-    void processSMI();
-
     void initialize();
 	bool handleCommand(const std::string& command);
 

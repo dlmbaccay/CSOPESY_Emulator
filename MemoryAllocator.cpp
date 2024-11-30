@@ -1,377 +1,350 @@
 #include "MemoryAllocator.h"
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <ctime>
 #include <cstdlib>
+#include <algorithm> 
 
 using namespace std;
 
-// Constructor: initializes memory frames based on total memory size and frame size.
-MemoryAllocator::MemoryAllocator(size_t max_overall_mem, size_t mem_per_frame, size_t min_mem_per_proc, size_t max_mem_per_proc)
-  :
-  max_overall_mem(max_overall_mem),
-  mem_per_frame(mem_per_frame),
-  min_mem_per_proc(min_mem_per_proc),
-  max_mem_per_proc(max_mem_per_proc)
-{
-  size_t numFrames = max_overall_mem / mem_per_frame;
-  memoryFrames.resize(numFrames, { -1, false });  // Initialize frames as unoccupied
+MemoryAllocator::MemoryAllocator(ConfigManager* configManager) {
+	maxOverallMem = configManager->getMaxOverallMem();
+	memPerFrame = configManager->getMemPerFrame();
+	minMemPerProcess = configManager->getMinMemPerProcess();
+	maxMemPerProcess = configManager->getMaxMemPerProcess();
 
-  if (max_overall_mem == mem_per_frame) {
-    allocationType = "paging";
-  }
-  else {
-    allocationType = "flat";
-  }
+	if (isFlatAllocation()) {
+		for (int i = 0; i < maxOverallMem; ++i) {
+			memoryAddresses.push_back(i);
+		}
+	}
 }
 
-// Allocate memory for a process using the first-fit method.
-bool MemoryAllocator::allocateMemory(int processID) {
-  // Determine a random memory size for the process between min and max memory required
-  size_t processMemory = min_mem_per_proc + rand() % (max_mem_per_proc - min_mem_per_proc + 1);
-  size_t requiredPages = (processMemory + mem_per_frame - 1) / mem_per_frame; // Correctly calculate required pages
+MemoryAllocator::~MemoryAllocator() {
+}
 
-  // Ensure we have enough memory to allocate the process
-  if (requiredPages * mem_per_frame > max_overall_mem) {
-    return false; // Not enough memory to allocate the process
-  }
+bool MemoryAllocator::isFlatAllocation() const {
+	return memPerFrame == maxOverallMem;
+}
 
-  if (allocationType == "paging") {
-    // Paging allocation logic
-    int startFrame = findFreeFrames(requiredPages);
+bool MemoryAllocator::isProcessInMemory(Process* process) const {
+	return processMap.find(process->getProcessName()) != processMap.end();
+}
 
-    if (startFrame == -1) {
-      // If no free frames are available, we need to swap out an old process to the backing store
-      int oldestProcessID = findOldestProcess();
-      if (oldestProcessID != -1) {
-        moveToBackingStore(oldestProcessID); // Move oldest process to backing store
-        freeMemory(oldestProcessID);        // Free its memory in physical frames
-      }
+bool MemoryAllocator::allocateMemory(Process* process) {
+	if (isFlatAllocation()) {
+		return allocateFlatMemory(process);
+	}
+	else {
+		return allocatePagingMemory(process);
+	}
+	return false;
+}
 
-      // Try to allocate memory again after swapping out
-      startFrame = findFreeFrames(requiredPages);
-      if (startFrame == -1) {
-        return false; // Still no free frames available after swapping out
-      }
-    }
-
-    // Restore from backing store if process was previously swapped out
-    if (backingStore.find(processID) != backingStore.end()) {
-      restoreFromBackingStore(processID); // Restore pages for the process
-    }
-
-    // Allocate memory for the process (load the pages into memory)
-    for (size_t i = startFrame; i < startFrame + requiredPages; ++i) {
-      memoryFrames[i] = { processID, true, std::time(0) }; // Mark the page as occupied and set lastAccessed timestamp
-      pagedInCount++;
-    }
-  }
-  else { // Flat memory allocation
-    // Flat allocation logic: Process memory must fit within contiguous frames
-    size_t requiredFrames = (processMemory + mem_per_frame - 1) / mem_per_frame;
-
-    // Ensure process memory doesn't exceed the available space
-    if (requiredFrames * mem_per_frame > max_overall_mem) {
-      return false; // Not enough memory to allocate the process
-    }
-
-    // Find a contiguous block of free frames for the process
-    int startFrame = findFreeFrames(requiredFrames);
-
-    if (startFrame == -1) {
-      // If no contiguous space is available, swap out the oldest process
-      int oldestProcessID = findOldestProcess();
-      if (oldestProcessID != -1) {
-        moveToBackingStore(oldestProcessID); // Move oldest process to backing store
-        freeMemory(oldestProcessID);        // Free its memory in physical frames
-      }
-
-      // Try again after swapping out
-      startFrame = findFreeFrames(requiredFrames);
-      if (startFrame == -1) {
-        return false; // Still no contiguous space available
-      }
-    }
-
-    // Allocate memory for the process (mark frames as occupied)
-    for (size_t i = startFrame; i < startFrame + requiredFrames; ++i) {
-      memoryFrames[i] = { processID, true, std::time(0) }; // Mark the frame as occupied and set lastAccessed timestamp
-      pagedInCount++;
-    }
-  }
-
-  return true;
+void MemoryAllocator::deallocateMemory(Process* process) {
+	if (isFlatAllocation()) {
+		removeFlatMemory(process);
+	}
+	else {
+		removePagingMemory(process);
+	}
 }
 
 
-void MemoryAllocator::freeMemory(int processID) {
-  size_t freedPages = 0; // Track the number of pages freed
+bool MemoryAllocator::allocateFlatMemory(Process* process) {
+	std::string processName = process->getProcessName();
 
-  for (auto& frame : memoryFrames) {
-    //std::cout << "Frame process ID: " << frame.processID << ", Target process ID: " << processID << "\n";
+	int memRequired = process->getMemorySize();
 
-    if (frame.processID == processID) {
-      frame.isOccupied = false;  // Mark frame as free
-      frame.processID = -1;      // Reset the process ID
-      frame.lastAccessed = 0;    // Clear last accessed time
-      freedPages++;              // Increment the count of freed pages
-    }
-  }
-  //cout << freedPages << endl;
-  if (freedPages > 0) {
-    pagedOutCount += freedPages; // Update the total number of pages paged out
-  }
+	if (maxOverallMem - allocatedAddresses.size() < memRequired) {
+		// Not enough memory, find the oldest process
+		auto oldestProcess = std::min_element(processMap.begin(), processMap.end(),
+			[](const auto& a, const auto& b) {
+				return a.second.allocationTime < b.second.allocationTime;
+			});
 
-  // Move the process's pages to the backing store
-  std::vector<int> swappedPages;
-  for (size_t i = 0; i < memoryFrames.size(); ++i) {
-    if (memoryFrames[i].processID == -1) {
-      swappedPages.push_back(i);
-    }
-  }
+		if (oldestProcess != processMap.end()) {
+			saveProcessToBackingStore(oldestProcess->second.process);
+			removeFlatMemory(oldestProcess->second.process);
+		}
+		else {
+			// No processes to remove, allocation fails
+			return false;
+		}
+	}
 
-  if (!swappedPages.empty()) {
-    backingStore[processID] = swappedPages;
-    // Optional: Log this action
-    //std::cout << "Process " << processID << " moved to backing store. Pages freed: " << freedPages << "\n";
-  }
+	int consecutiveFreeAddresses = 0;
+	int startIndex = -1;
+
+	// Find consecutive free addresses
+	for (int i = 0; i < maxOverallMem; ++i) {
+		if (find(allocatedAddresses.begin(), allocatedAddresses.end(), memoryAddresses[i]) == allocatedAddresses.end()) {
+			// Address is free
+			++consecutiveFreeAddresses;
+			if (startIndex == -1) {
+				startIndex = i;
+			}
+		}
+		else {
+			consecutiveFreeAddresses = 0;
+			startIndex = -1;
+		}
+
+		if (consecutiveFreeAddresses >= memRequired) {
+			for (int j = startIndex; j < startIndex + memRequired; ++j) {
+				allocatedAddresses.push_back(memoryAddresses[j]);
+			}
+
+			int endIndex = startIndex + memRequired - 1;
+			processMap[processName] = { process, startIndex, endIndex, time(0) };
+			return true;
+		}
+	}
+	return false;
 }
 
 
-
-size_t MemoryAllocator::getPagedInCount() const { return pagedInCount; }
-size_t MemoryAllocator::getPagedOutCount() const { return pagedOutCount; }
-
-// Find the starting frame index for the first contiguous block of free frames.
-int MemoryAllocator::findFreeFrames(size_t requiredFrames) const {
-  if (allocationType == "flat") {
-    // Flat memory allocation (requires contiguous blocks of memory)
-    size_t consecutiveFreeFrames = 0;
-    int startFrame = -1;
-
-    for (size_t i = 0; i < memoryFrames.size(); ++i) {
-      if (!memoryFrames[i].isOccupied) {
-        if (startFrame == -1) startFrame = i;
-        consecutiveFreeFrames++;
-        if (consecutiveFreeFrames == requiredFrames) {
-          return startFrame;
-        }
-      }
-      else {
-        consecutiveFreeFrames = 0;
-        startFrame = -1;
-      }
-    }
-  }
-  else if (allocationType == "paging") {
-    // Paging memory allocation (non-contiguous pages)
-    size_t freeFramesFound = 0;
-    int startFrame = -1;
-
-    for (size_t i = 0; i < memoryFrames.size(); ++i) {
-      if (!memoryFrames[i].isOccupied) {
-        if (freeFramesFound == 0) {
-          startFrame = i; // Mark the start of the free frames
-        }
-        freeFramesFound++;
-
-        // If we've found the required number of free frames, return the start index
-        if (freeFramesFound == requiredFrames) {
-          return startFrame;
-        }
-      }
-    }
-  }
-
-  return -1; // No sufficient free frames available
+void MemoryAllocator::removeFlatMemory(Process* process) {
+	std::string processName = process->getProcessName();
+	auto it = processMap.find(processName);
+	if (it != processMap.end()) {
+		int startIndex = it->second.startAddressIndex;
+		int endIndex = it->second.endAddressIndex;
+		for (int i = startIndex; i <= endIndex; ++i) {
+			// Remove allocated addresses from the allocatedAddresses vector
+			allocatedAddresses.erase(remove(allocatedAddresses.begin(), allocatedAddresses.end(), memoryAddresses[i]), allocatedAddresses.end());
+		}
+		processMap.erase(it);
+	}
 }
 
-// Find the process that has been in memory the longest (oldest process)
-int MemoryAllocator::findOldestProcess() const {
-  int oldestProcessID = -1;
-  std::time_t oldestAccessTime = std::time_t(0); // Initialize to epoch time (oldest)
 
-  // Loop through all memory frames to find the process with the oldest access time
-  for (const auto& frame : memoryFrames) {
-    if (frame.isOccupied) {
-      // If we haven't found a process yet or if this one was accessed earlier
-      if (oldestProcessID == -1 || frame.lastAccessed < oldestAccessTime) {
-        oldestProcessID = frame.processID;
-        oldestAccessTime = frame.lastAccessed;
-      }
-    }
-  }
-
-  return oldestProcessID; // Return the process ID of the oldest process
+void MemoryAllocator::showFlatMemory() {
+	cout << "Flat memory allocation:" << endl;
+	cout << "-----------------------" << endl;
+	cout << "Max overall memory: " << maxOverallMem << endl;
+	cout << "Memory usage: " << allocatedAddresses.size() << " KB / " << maxOverallMem << " KB" << endl;
+	// Display process names and corresponding memory size
+	for (auto& entry : processMap) {
+		cout << "Process: " << entry.first << " (Memory size: " << entry.second.endAddressIndex - entry.second.startAddressIndex + 1 << ")" << endl;
+	}
+	cout << endl;
 }
 
-// Get the current system time for snapshot
-std::string MemoryAllocator::getCurrentTime() const {
-  std::time_t now = std::time(0);
-  std::tm localTime;
-  localtime_s(&localTime, &now);
-  char buffer[50];
-  std::strftime(buffer, sizeof(buffer), "%m/%d/%Y %I:%M:%S%p", &localTime);
-  return buffer;
+bool MemoryAllocator::allocatePagingMemory(Process* process) {
+	std::string processName = process->getProcessName();
+	int pagesRequired = (process->getMemorySize() + memPerFrame - 1) / memPerFrame;
+
+	// Check if there are enough free frames
+	if (frameList.size() + pagesRequired > maxOverallMem / memPerFrame) {
+		// Not enough frames, find the oldest process
+		auto oldestProcessIt = std::min_element(processPageMap.begin(), processPageMap.end(),
+			[](const auto& a, const auto& b) {
+				return a.second.first < b.second.first; // Compare allocation times of processes
+			});
+
+		if (oldestProcessIt != processPageMap.end()) {
+			std::string oldestProcessName = oldestProcessIt->first;
+
+			// Remove pages of the oldest process from frameList
+			frameList.erase(std::remove_if(frameList.begin(), frameList.end(),
+				[&](const Page& page) { return page.process->getProcessName() == oldestProcessName; }), frameList.end());
+
+			// get the process object from a page in the frameList with a process name that matches the oldest process name
+			auto oldestProcessPage = std::find_if(
+				frameList.begin(), frameList.end(),
+				[&](const Page& page) { return page.process->getProcessName() == oldestProcessName; }
+			);
+			
+			saveProcessToBackingStore(oldestProcessPage->process);
+
+			// Remove the oldest process from processPageMap
+			processPageMap.erase(oldestProcessIt);
+
+		}
+		else {
+			// No processes to remove, allocation fails
+			return false;
+		}
+	}
+
+	// Allocate pages to the process
+	for (int i = 0; i < pagesRequired; ++i) {
+		Page newPage = { process, i };
+		frameList.push_back(newPage);
+		processPageMap[processName].second.push_back(i); // Add page number to the vector
+	}
+
+	// Set allocation time for the process (only when it's first allocated)
+	if (processPageMap[processName].first == 0) {
+		processPageMap[processName].first = time(0);
+	}
+
+	return true;
 }
 
-int MemoryAllocator::calculateNumberofProcesses() const {
-  std::unordered_set<int> uniqueProcesses;
+void MemoryAllocator::removePagingMemory(Process* process) {
+	std::string processName = process->getProcessName();
+	auto it = processPageMap.find(processName);
+	if (it != processPageMap.end()) {
+		// No need to iterate over page numbers, just remove all pages of the process
+		frameList.erase(std::remove_if(frameList.begin(), frameList.end(),
+			[&](const Page& page) {
+				return page.process->getProcessName() == processName;
+			}), frameList.end());
 
-  // Count unique process IDs in memory
-  for (const auto& frame : memoryFrames) {
-    if (frame.isOccupied) {
-      uniqueProcesses.insert(frame.processID);  // Insert unique process IDs
-    }
-  }
-
-  // Return the count of unique processes
-  return uniqueProcesses.size();
+		processPageMap.erase(it); // Remove the process entry from the map
+	}
 }
 
-size_t MemoryAllocator::getMaxOverallMem() const {
-  return max_overall_mem;
+void MemoryAllocator::showPagingMemory() {
+	cout << "Paging memory allocation:" << endl;
+	cout << "-------------------------" << endl;
+	cout << "Total frames: " << maxOverallMem / memPerFrame << endl;
+	cout << "Used frames: " << frameList.size() << endl;
+	cout << "Free frames: " << maxOverallMem / memPerFrame - frameList.size() << endl;
+
+	// Display processes and their allocated pages
+	for (const auto& entry : processPageMap) {
+		cout << "Process: " << entry.first << "Pages: ";
+		for (int pageNumber : entry.second.second) { // Access the page numbers from the pair
+			cout << pageNumber << " ";
+		}
+		cout << endl;
+	}
+	cout << endl;
 }
 
-void MemoryAllocator::setMaxOverallMem(size_t max_overall_mem) {
-  max_overall_mem = max_overall_mem;
+void MemoryAllocator::saveProcessToBackingStore(Process* process) {
+	std::string processName = process->getProcessName();
+	std::string filePath = backingStorePath + "/" + processName + ".txt";
+
+	std::filesystem::create_directories(backingStorePath);
+
+	std::ofstream file(filePath);
+
+	if (file.is_open()) {
+		file << process->getProcessName() << std::endl;
+		file << std::hex << reinterpret_cast<uintptr_t>(process) << std::dec <<std::endl;
+		file << "Executed Instructions: " << std::endl;
+		file << process->getCommandIndex() << std::endl;
+		file << "Total Instructions: " << std::endl;
+		file << process->getTotalCommands() << std::endl;
+		file << "Memory Size: " << std::endl;
+		file << process->getMemorySize() << std::endl;
+		file << "Number of Pages: " << std::endl;
+		file << process->getNumPages() << std::endl;
+
+		file.close();
+
+		numPagesOut += process->getNumPages();
+		backingStoreSet.insert(processName);
+	}
+	else {
+		std::cerr << "Error: Unable to open file for saving process to backing store." << std::endl;
+	}
 }
 
-size_t MemoryAllocator::getMemPerFrame() const {
-  return mem_per_frame;
+Process* MemoryAllocator::loadProcessFromBackingStore(const std::string& processName) {
+	std::string filePath = backingStorePath + "/" + processName + ".txt";
+
+	std::ifstream file(filePath);
+	if (file.is_open()) {
+		uintptr_t processAddress;
+		std::string name;
+		int commandIndex, totalCommands, memorySize, numPages;
+
+		file >> name;
+		file >> std::hex >> processAddress;
+		file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		file >> commandIndex;
+		file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		file >> totalCommands;
+		file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		file >> memorySize;
+		file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+		file >> numPages;
+
+		file.close();
+
+
+		Process* loadedProcess = reinterpret_cast<Process*>(processAddress);
+
+		numPagesIn += loadedProcess->getNumPages();
+
+		backingStoreSet.erase(processName);
+
+		return loadedProcess;
+	}
+	else {
+		std::cerr << "Error: Unable to open file for loading process from backing store." << std::endl;
+		return nullptr;
+	}
 }
 
-void MemoryAllocator::setMemPerFrame(size_t mem_per_frame) {
-  mem_per_frame = mem_per_frame;
+void MemoryAllocator::showProcessSMI(double cpuUtil) {
+	int usedMemory, totalMemory;
+
+	if (isFlatAllocation()) {
+		usedMemory = allocatedAddresses.size();
+		totalMemory = maxOverallMem;
+	}
+	else { // Paging allocation
+		int usedFrames = frameList.size();
+		int totalFrames = maxOverallMem / memPerFrame;
+		usedMemory = usedFrames * memPerFrame;
+		totalMemory = totalFrames * memPerFrame;
+	}
+
+	double memoryUtil = (static_cast<double>(usedMemory) / totalMemory) * 100;
+
+
+	cout << "-------------------------------------------------" << endl;
+	cout << "|  PROCESS-SMI V01.00 Driver Version: 01.00     |" << endl;
+	cout << "-------------------------------------------------" << endl;
+	cout << "CPU-Util: " << cpuUtil << "%" << endl;
+	cout << "Memory Usage: " << usedMemory << " KB / " << totalMemory << " KB" << endl;
+	cout << "Memory Util: " << memoryUtil << "%" << endl << endl;
+	cout << "-------------------------------------------------" << endl;
+	cout << "|  Running Processes and Memory Usage:          |" << endl;
+	cout << "-------------------------------------------------" << endl;
+
+	// Display process names and corresponding memory size
+	if (isFlatAllocation()) {
+		for (const auto& entry : processMap) {
+			cout << setw(12) << entry.first << "  " << entry.second.endAddressIndex - entry.second.startAddressIndex + 1 << "KB" << endl;
+		}
+	}
+	else { // Paging allocation
+		for (const auto& entry : processPageMap) {
+			cout << setw(12) << entry.first << "  ";
+			cout << entry.second.second.size() * memPerFrame << " KB" << endl;
+		}
+	}
+	
+	cout << endl << endl;
 }
 
-size_t MemoryAllocator::getMinMemPerProc() const {
-  return min_mem_per_proc;
-}
-
-void MemoryAllocator::setMinMemPerProc(size_t minMemPerProc) {
-  min_mem_per_proc = minMemPerProc;
-}
-
-size_t MemoryAllocator::getMaxMemPerProc() const {
-  return max_mem_per_proc;
-}
-
-const std::vector<MemoryAllocator::Frame>& MemoryAllocator::getMemoryFrames() const {
-  return memoryFrames;
-}
-
-void MemoryAllocator::setMemoryFrames(const std::vector<MemoryAllocator::Frame>& frames) {
-  memoryFrames = frames;
-}
-
-const std::string MemoryAllocator::getAllocationType() const {
-  return allocationType;
-}
-
-void MemoryAllocator::setAllocationType(const std::string& type) {
-  if (type == "flat" || type == "paging") {
-    allocationType = type;
-  }
-}
-
-size_t MemoryAllocator::getProcessMemory(int processID) const {
-  size_t memoryUsed = 0;
-
-  // Iterate through all memory frames
-  for (const auto& frame : memoryFrames) {
-    // Check if the frame is occupied by the given process
-    if (frame.isOccupied && frame.processID == processID) {
-      memoryUsed += mem_per_frame; // Add the frame size to the total memory used
-    }
-  }
-
-  return memoryUsed;
-}
-
-size_t MemoryAllocator::calculateUsedMemory() const {
-  size_t totalUsedMemory = 0;
-
-  // Iterate through all memory frames
-  for (const auto& frame : memoryFrames) {
-    if (frame.isOccupied) {
-      totalUsedMemory += mem_per_frame; // Add frame size to total used memory
-    }
-  }
-
-  return totalUsedMemory;
-}
-
-void MemoryAllocator::moveToBackingStore(int processID) {
-  std::vector<int> swappedPages;
-
-  // Iterate through memory frames and move process pages to backing store
-  for (size_t i = 0; i < memoryFrames.size(); ++i) {
-    if (memoryFrames[i].processID == processID) {
-      swappedPages.push_back(i); // Save frame index for the process
-      memoryFrames[i] = { -1, false, 0 }; // Mark frame as free
-    }
-  }
-
-  if (!swappedPages.empty()) {
-    backingStore[processID] = swappedPages;
-
-    // Write the swapped pages to a file
-    std::ofstream file("backing_store_" + std::to_string(processID) + ".txt");
-    if (file.is_open()) {
-      file << "Process ID: " << processID << "\n";
-      file << "Swapped Pages:\n";
-      for (int pageIndex : swappedPages) {
-        file << pageIndex << "\n";
-      }
-      file.close();
-    }
-    else {
-      std::cerr << "Error: Unable to create backing store file for Process " << processID << ".\n";
-    }
-  }
-}
-void MemoryAllocator::restoreFromBackingStore(int processID) {
-  // Check if the process is in the in-memory backing store
-  if (backingStore.find(processID) == backingStore.end()) {
-
-    // Attempt to restore from file
-    std::ifstream file("backing_store_" + std::to_string(processID) + ".txt");
-    if (file.is_open()) {
-      std::vector<int> swappedPages;
-      std::string line;
-      while (std::getline(file, line)) {
-        if (isdigit(line[0])) { // Parse only numeric lines (page indices)
-          swappedPages.push_back(std::stoi(line));
-        }
-      }
-      file.close();
-
-      // Restore the process pages into memory
-      for (int pageIndex : swappedPages) {
-        if (pageIndex >= 0 && pageIndex < memoryFrames.size()) {
-          memoryFrames[pageIndex] = { processID, true, std::time(0) };
-        }
-      }
-
-
-      // Optionally delete the file after restoring
-      std::remove(("backing_store_" + std::to_string(processID) + ".txt").c_str());
-    }
-    else {
-      std::cerr << "Error: Backing store file not found for Process " << processID << ".\n";
-    }
-    return;
-  }
-
-  // Restore from in-memory backing store
-  std::vector<int> swappedPages = backingStore[processID];
-  backingStore.erase(processID);
-
-  for (int pageIndex : swappedPages) {
-    if (pageIndex >= 0 && pageIndex < memoryFrames.size()) {
-      memoryFrames[pageIndex] = { processID, true, std::time(0) };
-    }
-  }
-
+void MemoryAllocator::showVmStat(int idleCpuTicks, int activeCpuTicks) {
+	cout << "-------------------------------------------------" << endl;
+	cout << " VMSTAT" << endl;
+	cout << "-------------------------------------------------" << endl;
+	cout << setw(9) << maxOverallMem << "  Total Memory" << endl;
+	if (isFlatAllocation()) {
+		cout << setw(9) << allocatedAddresses.size() << "  Used Memory" << endl;
+		cout << setw(9) << maxOverallMem - allocatedAddresses.size() << "  Free Memory" << endl;
+	}
+	else { // Paging allocation
+		int usedFrames = frameList.size();
+		int totalFrames = maxOverallMem / memPerFrame;
+		cout << setw(9) << usedFrames * memPerFrame << "  Used Memory" << endl;
+		cout << setw(9) << (totalFrames - usedFrames) * memPerFrame << "  Free Memory" << endl;
+	}
+	cout << setw(9) << idleCpuTicks << "  Idle CPU ticks" << endl;
+	cout << setw(9) << activeCpuTicks << "  Active CPU ticks" << endl;
+	cout << setw(9) << idleCpuTicks + activeCpuTicks  << "  Total CPU ticks" << endl;
+	cout << setw(9) << numPagesOut << "  Pages paged out" << endl;
+	cout << setw(9) << numPagesIn << "  Pages paged in" << endl << endl;
+	cout << "-------------------------------------------------" << endl<< endl;
 }

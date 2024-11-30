@@ -44,6 +44,12 @@ void ConfigManager::readConfig() {
             if (typeString == "'fcfs'") {
                 schedulerType = SchedulerType::FCFS;
             }
+            else if (typeString == "\"fcfs\"") {
+              schedulerType = SchedulerType::FCFS;
+            }
+            else if (typeString == "\"rr\"") {
+              schedulerType = SchedulerType::RR;
+            }
             else if (typeString == "'rr'") {
                 schedulerType = SchedulerType::RR;
             }

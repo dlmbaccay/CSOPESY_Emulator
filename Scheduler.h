@@ -47,6 +47,10 @@ public:
     void addProcess(Process* newProcess);
     void start();
 
+
+    unsigned long long idleCpuTicks = 0;
+		int activeCpuTicks = 0;
+
     CpuUtilization getCpuUtilization();
     std::vector<bool> getCpuCores() { return cpuCores; };
 
